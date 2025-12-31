@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Joke Camera</string>
+    
+    <!-- Main Activity -->
+    <string name="settings">Settings</string>
+    <string name="switch_camera">Switch Camera</string>
+    <string name="capture">Capture Photo</string>
+    <string name="tell_joke">Tell a Joke</string>
+    <string name="start_auto">Start Auto</string>
+    <string name="stop">Stop</string>
+    
+    <!-- Settings Activity -->
+    <string name="settings_title">Settings</string>
+    
+    <!-- Section Headers -->
+    <string name="section_joke_mode">JOKE TELLING MODE</string>
+    <string name="section_capture_mode">PHOTO CAPTURE MODE</string>
+    <string name="section_detection_mode">SMILE/LAUGH DETECTION</string>
+    <string name="section_timing">TIMING SETTINGS</string>
+    <string name="section_statistics">JOKE STATISTICS</string>
+    
+    <!-- Manual Joke Mode -->
+    <string name="manual_joke_title">Manual Joke Mode</string>
+    <string name="manual_joke_description">Show a \"Tell a Joke\" button to manually trigger jokes one at a time</string>
+    
+    <!-- Punchline Delay -->
+    <string name="punchline_delay_title">Setup to Punchline Delay</string>
+    <string name="punchline_delay_description">Time between setup line and punchline (0.00 - 2.00 seconds)</string>
+    
+    <!-- Detection Enabled -->
+    <string name="detection_enabled_title">Smile/Laugh Detection</string>
+    <string name="detection_enabled_description">Automatically detect smiles and laughs to trigger photo capture</string>
+    
+    <!-- Timer Mode -->
+    <string name="timer_mode_title">Timer Mode</string>
+    <string name="timer_mode_description">Take photo after a set time instead of waiting for smile/laugh</string>
+    
+    <!-- Detection Mode Radio Options -->
+    <string name="detection_mode_title">Detection Trigger</string>
+    <string name="detection_smile_only">Wait for smile only</string>
+    <string name="detection_laugh_only">Wait for laugh only (big smile)</string>
+    <string name="detection_smile_and_laugh">Wait for both smile AND laugh</string>
+    <string name="detection_smile_or_laugh">Wait for smile OR laugh (default)</string>
+    
+    <!-- Next Joke Wait -->
+    <string name="next_joke_wait_title">Wait Before Next Joke</string>
+    <string name="next_joke_wait_description">Time to wait for reaction before telling another joke</string>
+    
+    <!-- Statistics -->
+    <string name="reset_jokes">Reset All Jokes</string>
+    
+    <!-- Permissions -->
+    <string name="camera_permission_required">Camera permission is required to use this app</string>
+    
+    <!-- Messages -->
+    <string name="photo_saved">Photo saved!</string>
+    <string name="photo_capture_failed">Photo capture failed</string>
+    <string name="speech_not_ready">Speech engine not ready</string>
+    <string name="speech_init_failed">Speech initialization failed</string>
+</resources>
