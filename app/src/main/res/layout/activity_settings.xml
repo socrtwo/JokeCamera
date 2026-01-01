@@ -125,6 +125,117 @@
 
         </androidx.cardview.widget.CardView>
 
+        <!-- Section: Joke Categories -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/section_joke_categories"
+            android:textColor="#1976D2"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="@string/joke_categories_description"
+                    android:textColor="#757575"
+                    android:textSize="12sp" />
+
+                <!-- General Jokes Checkbox -->
+                <CheckBox
+                    android:id="@+id/checkbox_general"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:padding="8dp"
+                    android:text="General (380 jokes)"
+                    android:textColor="#212121"
+                    android:textSize="16sp" />
+
+                <!-- Programming Jokes Checkbox -->
+                <CheckBox
+                    android:id="@+id/checkbox_programming"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:padding="8dp"
+                    android:text="Programming (64 jokes)"
+                    android:textColor="#212121"
+                    android:textSize="16sp" />
+
+                <!-- Knock-Knock Jokes Checkbox -->
+                <CheckBox
+                    android:id="@+id/checkbox_knock_knock"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:padding="8dp"
+                    android:text="Knock-Knock (5 jokes)"
+                    android:textColor="#212121"
+                    android:textSize="16sp" />
+
+                <!-- Dad Jokes Checkbox -->
+                <CheckBox
+                    android:id="@+id/checkbox_dad"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:padding="8dp"
+                    android:text="Dad Jokes (2 jokes)"
+                    android:textColor="#212121"
+                    android:textSize="16sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="12dp"
+                    android:background="#E0E0E0" />
+
+                <!-- Select All / None Buttons -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/button_select_all"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:text="@string/category_select_all" />
+
+                    <Button
+                        android:id="@+id/button_select_none"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:text="@string/category_select_none" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
         <!-- Section: Photo Capture Mode -->
         <TextView
             android:layout_width="match_parent"
@@ -394,6 +505,105 @@
                         android:textSize="14sp" />
 
                 </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Section: Joke Management -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/section_joke_management"
+            android:textColor="#1976D2"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="@string/joke_management_description"
+                    android:textColor="#757575"
+                    android:textSize="12sp" />
+
+                <!-- Download Template Button -->
+                <Button
+                    android:id="@+id/button_download_template"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:text="@string/download_template" />
+
+                <!-- Download Current Jokes Button -->
+                <Button
+                    android:id="@+id/button_download_jokes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:text="@string/download_current_jokes" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="12dp"
+                    android:background="#E0E0E0" />
+
+                <!-- Replace Jokes Checkbox -->
+                <CheckBox
+                    android:id="@+id/checkbox_replace_jokes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:padding="8dp"
+                    android:text="@string/replace_jokes_checkbox"
+                    android:textColor="#212121"
+                    android:textSize="14sp" />
+
+                <!-- Upload Jokes Button -->
+                <Button
+                    android:id="@+id/button_upload_jokes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:backgroundTint="#4CAF50"
+                    android:text="@string/upload_jokes"
+                    android:textColor="#FFFFFF" />
+
+                <!-- Clear Custom Jokes Button -->
+                <Button
+                    android:id="@+id/button_clear_custom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:text="@string/clear_custom_jokes"
+                    android:textColor="#FF5722" />
+
+                <!-- Custom Jokes Stats -->
+                <TextView
+                    android:id="@+id/text_custom_joke_stats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Custom jokes: 0"
+                    android:textColor="#757575"
+                    android:textSize="12sp" />
 
             </LinearLayout>
 

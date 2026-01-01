@@ -15,10 +15,20 @@
     
     <!-- Section Headers -->
     <string name="section_joke_mode">JOKE TELLING MODE</string>
+    <string name="section_joke_categories">JOKE CATEGORIES</string>
     <string name="section_capture_mode">PHOTO CAPTURE MODE</string>
     <string name="section_detection_mode">SMILE/LAUGH DETECTION</string>
     <string name="section_timing">TIMING SETTINGS</string>
     <string name="section_statistics">JOKE STATISTICS</string>
+    
+    <!-- Joke Categories -->
+    <string name="joke_categories_description">Select which types of jokes to include</string>
+    <string name="category_general">General (%d jokes)</string>
+    <string name="category_programming">Programming (%d jokes)</string>
+    <string name="category_knock_knock">Knock-Knock (%d jokes)</string>
+    <string name="category_dad">Dad Jokes (%d jokes)</string>
+    <string name="category_select_all">Select All</string>
+    <string name="category_select_none">Select None</string>
     
     <!-- Manual Joke Mode -->
     <string name="manual_joke_title">Manual Joke Mode</string>
@@ -49,6 +59,21 @@
     
     <!-- Statistics -->
     <string name="reset_jokes">Reset All Jokes</string>
+    
+    <!-- Joke Management -->
+    <string name="section_joke_management">JOKE MANAGEMENT</string>
+    <string name="joke_management_description">Import, export, or modify jokes</string>
+    <string name="download_template">Download Template</string>
+    <string name="download_current_jokes">Download Current Jokes</string>
+    <string name="upload_jokes">Upload Jokes</string>
+    <string name="replace_jokes_checkbox">Replace all jokes (otherwise adds to existing)</string>
+    <string name="template_downloaded">Template saved to Downloads</string>
+    <string name="jokes_downloaded">Jokes saved to Downloads</string>
+    <string name="jokes_imported">Successfully imported %d jokes</string>
+    <string name="jokes_import_failed">Failed to import jokes: %s</string>
+    <string name="no_file_selected">No file selected</string>
+    <string name="clear_custom_jokes">Clear Custom Jokes</string>
+    <string name="custom_jokes_cleared">Custom jokes cleared</string>
     
     <!-- Permissions -->
     <string name="camera_permission_required">Camera permission is required to use this app</string>

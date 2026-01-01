@@ -1,7 +1,12 @@
 package com.jokecamera.app
 
 import android.os.Bundle
+import android.os.Environment
 import android.widget.SeekBar
+import android.widget.CheckBox
+import android.widget.Toast
+import android.content.Intent
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import android.widget.RadioGroup
@@ -10,6 +15,11 @@ import android.widget.Button
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import com.google.android.material.slider.Slider
+import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
+import java.io.FileOutputStream
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 /**
  * Settings/Configuration Activity for JokeCamera app.
@@ -38,6 +48,29 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var textPunchlineValue: TextView
     private lateinit var buttonResetJokes: Button
     private lateinit var textJokeStats: TextView
+    
+    // Category checkboxes
+    private lateinit var checkboxGeneral: CheckBox
+    private lateinit var checkboxProgramming: CheckBox
+    private lateinit var checkboxKnockKnock: CheckBox
+    private lateinit var checkboxDad: CheckBox
+    private lateinit var buttonSelectAll: Button
+    private lateinit var buttonSelectNone: Button
+    
+    // Joke management
+    private lateinit var buttonDownloadTemplate: Button
+    private lateinit var buttonDownloadJokes: Button
+    private lateinit var buttonUploadJokes: Button
+    private lateinit var checkboxReplaceJokes: CheckBox
+    private lateinit var buttonClearCustom: Button
+    private lateinit var textCustomJokeStats: TextView
+    
+    // File picker launcher
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { handleFileSelected(it) }
+    }
     
     companion object {
         // Preference keys
@@ -81,6 +114,7 @@ class SettingsActivity : AppCompatActivity() {
         loadSettings()
         setupListeners()
         updateJokeStats()
+        updateCustomJokeStats()
     }
     
     private fun initializeViews() {
@@ -96,6 +130,22 @@ class SettingsActivity : AppCompatActivity() {
         textPunchlineValue = findViewById(R.id.text_punchline_value)
         buttonResetJokes = findViewById(R.id.button_reset_jokes)
         textJokeStats = findViewById(R.id.text_joke_stats)
+        
+        // Category checkboxes
+        checkboxGeneral = findViewById(R.id.checkbox_general)
+        checkboxProgramming = findViewById(R.id.checkbox_programming)
+        checkboxKnockKnock = findViewById(R.id.checkbox_knock_knock)
+        checkboxDad = findViewById(R.id.checkbox_dad)
+        buttonSelectAll = findViewById(R.id.button_select_all)
+        buttonSelectNone = findViewById(R.id.button_select_none)
+        
+        // Joke management
+        buttonDownloadTemplate = findViewById(R.id.button_download_template)
+        buttonDownloadJokes = findViewById(R.id.button_download_jokes)
+        buttonUploadJokes = findViewById(R.id.button_upload_jokes)
+        checkboxReplaceJokes = findViewById(R.id.checkbox_replace_jokes)
+        buttonClearCustom = findViewById(R.id.button_clear_custom)
+        textCustomJokeStats = findViewById(R.id.text_custom_joke_stats)
         
         // Configure slider ranges
         sliderPunchlineDelay.valueFrom = MIN_PUNCHLINE_DELAY
@@ -136,6 +186,15 @@ class SettingsActivity : AppCompatActivity() {
         val punchlineDelay = prefs.getFloat(KEY_PUNCHLINE_DELAY, DEFAULT_PUNCHLINE_DELAY)
         sliderPunchlineDelay.value = punchlineDelay
         textPunchlineValue.text = String.format("%.2f seconds", punchlineDelay)
+        
+        // Load category settings
+        checkboxGeneral.isChecked = prefs.getBoolean(JokeManager.KEY_CATEGORY_GENERAL, true)
+        checkboxProgramming.isChecked = prefs.getBoolean(JokeManager.KEY_CATEGORY_PROGRAMMING, true)
+        checkboxKnockKnock.isChecked = prefs.getBoolean(JokeManager.KEY_CATEGORY_KNOCK_KNOCK, true)
+        checkboxDad.isChecked = prefs.getBoolean(JokeManager.KEY_CATEGORY_DAD, true)
+        
+        // Update checkbox labels with joke counts
+        updateCategoryLabels()
         
         // Update UI state based on settings
         updateTimerModeVisibility()
@@ -196,6 +255,68 @@ class SettingsActivity : AppCompatActivity() {
             jokeManager.resetToldJokes()
             updateJokeStats()
         }
+        
+        // Category checkbox listeners
+        checkboxGeneral.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(JokeManager.KEY_CATEGORY_GENERAL, isChecked).apply()
+            ensureAtLeastOneCategory()
+            updateJokeStats()
+        }
+        
+        checkboxProgramming.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(JokeManager.KEY_CATEGORY_PROGRAMMING, isChecked).apply()
+            ensureAtLeastOneCategory()
+            updateJokeStats()
+        }
+        
+        checkboxKnockKnock.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(JokeManager.KEY_CATEGORY_KNOCK_KNOCK, isChecked).apply()
+            ensureAtLeastOneCategory()
+            updateJokeStats()
+        }
+        
+        checkboxDad.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(JokeManager.KEY_CATEGORY_DAD, isChecked).apply()
+            ensureAtLeastOneCategory()
+            updateJokeStats()
+        }
+        
+        // Select All button
+        buttonSelectAll.setOnClickListener {
+            checkboxGeneral.isChecked = true
+            checkboxProgramming.isChecked = true
+            checkboxKnockKnock.isChecked = true
+            checkboxDad.isChecked = true
+        }
+        
+        // Select None button (will auto-revert to General if all unchecked)
+        buttonSelectNone.setOnClickListener {
+            checkboxGeneral.isChecked = false
+            checkboxProgramming.isChecked = false
+            checkboxKnockKnock.isChecked = false
+            checkboxDad.isChecked = false
+        }
+        
+        // Joke management listeners
+        buttonDownloadTemplate.setOnClickListener {
+            downloadTemplate()
+        }
+        
+        buttonDownloadJokes.setOnClickListener {
+            downloadCurrentJokes()
+        }
+        
+        buttonUploadJokes.setOnClickListener {
+            filePickerLauncher.launch("application/json")
+        }
+        
+        buttonClearCustom.setOnClickListener {
+            val jokeManager = JokeManager(this)
+            jokeManager.clearCustomJokes()
+            updateJokeStats()
+            updateCustomJokeStats()
+            Toast.makeText(this, getString(R.string.custom_jokes_cleared), Toast.LENGTH_SHORT).show()
+        }
     }
     
     private fun updateTimerModeVisibility() {
@@ -217,7 +338,112 @@ class SettingsActivity : AppCompatActivity() {
         val remaining = jokeManager.getRemainingCount()
         val total = jokeManager.getTotalCount()
         val told = total - remaining
-        textJokeStats.text = "Jokes told: $told / $total ($remaining remaining)"
+        val allJokes = jokeManager.getAllJokesCount()
+        textJokeStats.text = "Jokes told: $told / $total ($remaining remaining)\nTotal in all categories: $allJokes"
+    }
+    
+    private fun updateCategoryLabels() {
+        val jokeManager = JokeManager(this)
+        checkboxGeneral.text = String.format("General (%d jokes)", jokeManager.getCountByType(JokeType.GENERAL))
+        checkboxProgramming.text = String.format("Programming (%d jokes)", jokeManager.getCountByType(JokeType.PROGRAMMING))
+        checkboxKnockKnock.text = String.format("Knock-Knock (%d jokes)", jokeManager.getCountByType(JokeType.KNOCK_KNOCK))
+        checkboxDad.text = String.format("Dad Jokes (%d jokes)", jokeManager.getCountByType(JokeType.DAD))
+    }
+    
+    private fun ensureAtLeastOneCategory() {
+        // If all categories are unchecked, auto-check General
+        if (!checkboxGeneral.isChecked && !checkboxProgramming.isChecked && 
+            !checkboxKnockKnock.isChecked && !checkboxDad.isChecked) {
+            checkboxGeneral.isChecked = true
+            android.widget.Toast.makeText(this, "At least one category must be selected", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun updateCustomJokeStats() {
+        val jokeManager = JokeManager(this)
+        val customCount = jokeManager.getCustomCount()
+        val builtInCount = jokeManager.getBuiltInCount()
+        val isReplaced = jokeManager.isBuiltInReplaced()
+        
+        val statusText = if (isReplaced) {
+            "Custom jokes: $customCount (built-in jokes replaced)"
+        } else if (customCount > 0) {
+            "Custom jokes: $customCount (added to $builtInCount built-in)"
+        } else {
+            "Custom jokes: 0 (using $builtInCount built-in jokes)"
+        }
+        textCustomJokeStats.text = statusText
+    }
+    
+    private fun downloadTemplate() {
+        try {
+            val jokeManager = JokeManager(this)
+            val template = jokeManager.getTemplateJson()
+            
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, "joke_template.json")
+            
+            FileOutputStream(file).use { fos ->
+                fos.write(template.toByteArray())
+            }
+            
+            Toast.makeText(this, getString(R.string.template_downloaded), Toast.LENGTH_LONG).show()
+            
+            // Notify media scanner
+            val intent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+            intent.data = Uri.fromFile(file)
+            sendBroadcast(intent)
+            
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private fun downloadCurrentJokes() {
+        try {
+            val jokeManager = JokeManager(this)
+            val jokesJson = jokeManager.exportJokesAsJson()
+            
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val timestamp = System.currentTimeMillis()
+            val file = File(downloadsDir, "jokes_export_$timestamp.json")
+            
+            FileOutputStream(file).use { fos ->
+                fos.write(jokesJson.toByteArray())
+            }
+            
+            Toast.makeText(this, getString(R.string.jokes_downloaded), Toast.LENGTH_LONG).show()
+            
+            // Notify media scanner
+            val intent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+            intent.data = Uri.fromFile(file)
+            sendBroadcast(intent)
+            
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private fun handleFileSelected(uri: Uri) {
+        try {
+            val inputStream = contentResolver.openInputStream(uri)
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            val jsonString = reader.readText()
+            reader.close()
+            
+            val jokeManager = JokeManager(this)
+            val replaceExisting = checkboxReplaceJokes.isChecked
+            val count = jokeManager.importJokes(jsonString, replaceExisting)
+            
+            Toast.makeText(this, String.format(getString(R.string.jokes_imported), count), Toast.LENGTH_LONG).show()
+            
+            updateJokeStats()
+            updateCustomJokeStats()
+            updateCategoryLabels()
+            
+        } catch (e: Exception) {
+            Toast.makeText(this, String.format(getString(R.string.jokes_import_failed), e.message), Toast.LENGTH_LONG).show()
+        }
     }
     
     override fun onSupportNavigateUp(): Boolean {
