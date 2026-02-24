@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build and Release All Platforms
 
 on:
   push:
@@ -10,35 +10,115 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
-    
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
-    
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
-    
-    - name: Upload APK
+
+    - name: Build Android APK
+      run: ./gradlew :composeApp:assembleDebug
+
+    - name: Upload Android APK
       uses: actions/upload-artifact@v4
       with:
-        name: JokeCamera-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
-    
+        name: JokeCamera-android
+        path: composeApp/build/outputs/apk/debug/*.apk
+
+  build-desktop-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: chmod +x gradlew
+    - run: ./gradlew :composeApp:packageDeb
+    - uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-linux
+        path: composeApp/build/compose/binaries/main/deb/*.deb
+
+  build-desktop-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: chmod +x gradlew
+    - run: ./gradlew :composeApp:packageDmg
+    - uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-macos
+        path: composeApp/build/compose/binaries/main/dmg/*.dmg
+
+  build-desktop-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: ./gradlew :composeApp:packageMsi
+    - uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-windows
+        path: composeApp/build/compose/binaries/main/msi/*.msi
+
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: chmod +x gradlew
+    - run: ./gradlew :composeApp:wasmJsBrowserDistribution
+    - uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-web
+        path: composeApp/build/dist/wasmJs/productionExecutable/
+
+  release:
+    needs: [build-android, build-desktop-linux, build-desktop-macos, build-desktop-windows, build-web]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
     - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: app/build/outputs/apk/debug/app-debug.apk
+        files: |
+          artifacts/JokeCamera-android/*
+          artifacts/JokeCamera-linux/*
+          artifacts/JokeCamera-macos/*
+          artifacts/JokeCamera-windows/*
+          artifacts/JokeCamera-web/*
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
