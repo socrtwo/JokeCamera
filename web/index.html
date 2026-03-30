@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Joke Camera</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Camera View -->
+        <div id="camera-container">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <canvas id="capture-canvas" style="display:none"></canvas>
+        </div>
+
+        <!-- Joke Display -->
+        <div id="joke-display">
+            <div id="joke-setup"></div>
+            <div id="joke-punchline"></div>
+        </div>
+
+        <!-- Status Bar -->
+        <div id="status-bar">
+            <span id="status-text">Loading...</span>
+            <span id="face-status"></span>
+        </div>
+
+        <!-- Controls -->
+        <div id="controls">
+            <button id="btn-start-stop" class="btn btn-primary">Start Auto</button>
+            <button id="btn-tell-joke" class="btn btn-secondary" style="display:none">Tell a Joke</button>
+            <button id="btn-capture" class="btn btn-capture" title="Take Photo">
+                <svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="white"/></svg>
+            </button>
+            <button id="btn-switch-camera" class="btn btn-icon" title="Switch Camera">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-5 11c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z"/><path d="M9 12l3-3v2h3V9l3 3-3 3v-2h-3v2z"/></svg>
+            </button>
+            <button id="btn-settings" class="btn btn-icon" title="Settings">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            </button>
+        </div>
+
+        <!-- Settings Panel (hidden by default) -->
+        <div id="settings-panel" class="hidden">
+            <div class="settings-content">
+                <h2>Settings <button id="btn-close-settings" class="btn-close">&times;</button></h2>
+
+                <div class="setting-group">
+                    <h3>Joke Categories</h3>
+                    <label><input type="checkbox" id="cat-general" checked> General</label>
+                    <label><input type="checkbox" id="cat-programming" checked> Programming</label>
+                    <label><input type="checkbox" id="cat-knock-knock" checked> Knock-Knock</label>
+                    <label><input type="checkbox" id="cat-dad" checked> Dad Jokes</label>
+                </div>
+
+                <div class="setting-group">
+                    <label><input type="checkbox" id="opt-manual-mode"> Manual Joke Mode</label>
+                </div>
+
+                <div class="setting-group">
+                    <label><input type="checkbox" id="opt-detection" checked> Smile/Laugh Detection</label>
+                </div>
+
+                <div class="setting-group">
+                    <h3>Detection Mode</h3>
+                    <label><input type="radio" name="detection-mode" value="0"> Smile Only</label>
+                    <label><input type="radio" name="detection-mode" value="1"> Laugh Only</label>
+                    <label><input type="radio" name="detection-mode" value="2"> Smile AND Laugh</label>
+                    <label><input type="radio" name="detection-mode" value="3" checked> Smile OR Laugh</label>
+                </div>
+
+                <div class="setting-group">
+                    <label><input type="checkbox" id="opt-timer-mode"> Timer Mode</label>
+                    <div class="slider-group">
+                        <label>Timer Delay: <span id="timer-delay-val">3.0</span>s</label>
+                        <input type="range" id="slider-timer-delay" min="0.5" max="10" step="0.1" value="3.0">
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="slider-group">
+                        <label>Punchline Delay: <span id="punchline-delay-val">0.81</span>s</label>
+                        <input type="range" id="slider-punchline-delay" min="0" max="2" step="0.01" value="0.81">
+                    </div>
+                    <div class="slider-group">
+                        <label>Wait Before Next Joke: <span id="next-joke-wait-val">2.5</span>s</label>
+                        <input type="range" id="slider-next-joke-wait" min="0.5" max="10" step="0.1" value="2.5">
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <h3>Joke Management</h3>
+                    <p id="joke-stats"></p>
+                    <button id="btn-reset-jokes" class="btn btn-small">Reset All Jokes</button>
+                    <button id="btn-export-jokes" class="btn btn-small">Export Jokes (JSON)</button>
+                    <label class="btn btn-small btn-file">
+                        Import Jokes
+                        <input type="file" id="file-import-jokes" accept=".json" style="display:none">
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Photo flash overlay -->
+        <div id="flash-overlay" class="hidden"></div>
+    </div>
+
+    <script src="js/jokes-data.js"></script>
+    <script src="js/joke-manager.js"></script>
+    <script src="js/speech.js"></script>
+    <script src="js/face-detector.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
