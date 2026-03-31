@@ -38,8 +38,7 @@
           "target": "portable",
           "arch": ["x64"]
         }
-      ],
-      "icon": "icons/icon.ico"
+      ]
     },
     "mac": {
       "target": [
@@ -48,7 +47,6 @@
           "arch": ["x64", "arm64"]
         }
       ],
-      "icon": "icons/icon.icns",
       "category": "public.app-category.entertainment"
     },
     "linux": {
@@ -62,14 +60,11 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "icons",
       "category": "Entertainment"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "icons/icon.ico",
-      "uninstallerIcon": "icons/icon.ico"
+      "allowToChangeInstallationDirectory": true
     }
   },
   "devDependencies": {

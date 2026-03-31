@@ -15,7 +15,7 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true
         },
-        icon: path.join(__dirname, 'icons', 'icon.png')
+        // Uses default Electron icon; add custom icon to desktop/build/icon.png to override
     });
 
     // In production, load from extraResources; in dev, load from sibling web/ dir
