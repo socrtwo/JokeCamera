@@ -56,7 +56,7 @@ function createWindow() {
                         dialog.showMessageBox(mainWindow, {
                             type: 'info',
                             title: 'About Joke Camera',
-                            message: 'Joke Camera v2.0.0',
+                            message: 'Joke Camera v3.0.1',
                             detail: 'A fun app that tells jokes and captures photos when it detects smiles or laughter.\n\n451 built-in jokes across 4 categories.'
                         });
                     }

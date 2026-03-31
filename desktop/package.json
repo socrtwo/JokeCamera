@@ -1,6 +1,6 @@
 {
   "name": "joke-camera",
-  "version": "2.0.0",
+  "version": "3.0.1",
   "description": "Joke Camera - A fun app that tells jokes and captures photos when it detects smiles or laughter",
   "main": "main.js",
   "scripts": {
