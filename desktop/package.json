@@ -71,6 +71,10 @@
     "electron": "^30.0.0",
     "electron-builder": "^24.13.0"
   },
-  "author": "JokeCamera",
+  "homepage": "https://github.com/socrtwo/JokeCamera",
+  "author": {
+    "name": "JokeCamera",
+    "email": "jokecamera@users.noreply.github.com"
+  },
   "license": "MIT"
 }
