@@ -8,11 +8,13 @@ Available for **Android**, **iOS**, **Windows**, **macOS**, **Linux**, and **Web
 
 Joke Camera combines text-to-speech joke telling with real-time face detection to capture genuine reactions. The app tells a joke, waits for your smile or laugh, and automatically snaps a photo at just the right moment.
 
+The web and desktop experience features a modern glassmorphism UI with animated gradient orbs, floating emoji reactions, confetti bursts on belly laughs, a live happiness meter, and an inline photo gallery — all wrapped up in a zero-dependency static site that also ships as an Electron desktop app.
+
 ## Features
 
 ### Core Features
 - **451 Classic Jokes**: Curated collection of quality jokes organized by category
-- **Text-to-Speech**: Jokes are spoken aloud
+- **Text-to-Speech**: Jokes are spoken aloud with adjustable speed and pitch (web/desktop)
 - **Face Detection**: Detects faces and analyzes expressions in real-time
 - **Smile/Laugh Detection**: Automatically detects when subjects smile or laugh
 - **Automatic Photo Capture**: Takes a photo when a smile or laugh is detected
@@ -22,6 +24,18 @@ Joke Camera combines text-to-speech joke telling with real-time face detection t
 - **Front & Back Camera Support**: Switch between cameras with one tap
 - **Permission Handling**: Properly requests camera and storage permissions
 - **Photo Saving**: Photos are saved locally (gallery on mobile, download on web/desktop)
+- **Inline Gallery** (web/desktop): Recent captures appear as thumbnails; tap to preview and download
+
+### Fun & Delight (web/desktop)
+- **Glassmorphism UI**: Frosted-glass joke cards over an animated gradient-orb background
+- **Splash Screen**: Animated launch screen while the camera and detector warm up
+- **Floating Emoji Reactions**: 😊 / 😂 drift up from the camera when a smile or laugh is detected
+- **Confetti Bursts**: A shower of confetti celebrates a detected laugh (toggleable)
+- **Live Happiness Meter**: A gradient bar shows real-time smile probability with smile/laugh threshold markers
+- **Toast Notifications**: Non-intrusive feedback for imports, resets, captures, etc.
+- **Generated Sound Effects**: Camera shutter, laugh chime, start/stop tones — all synthesized with Web Audio, no audio assets needed
+- **Punchline Pop**: The punchline text pops into view synchronized with the spoken audio
+- **Respects `prefers-reduced-motion`** for accessibility
 
 ### Joke Categories
 
@@ -47,10 +61,11 @@ Joke Camera combines text-to-speech joke telling with real-time face detection t
 - **Distribution**: Build from source with Xcode 15+
 
 ### Web
-- **Technology**: HTML5, CSS3, JavaScript (no framework dependencies)
+- **Technology**: HTML5, CSS3, vanilla JavaScript (no framework dependencies, no build step)
 - **Camera**: WebRTC / getUserMedia API
-- **Face Detection**: face-api.js (TensorFlow.js-based)
-- **Speech**: Web Speech API (SpeechSynthesis)
+- **Face Detection**: face-api.js (TensorFlow.js-based) with CDN mirror fallback
+- **Speech**: Web Speech API (SpeechSynthesis) with adjustable rate and pitch
+- **Effects**: Confetti + floating emojis via `<canvas>`; sound effects via Web Audio (no audio files)
 - **Distribution**: Static files - deploy to any web server, or open `index.html` locally
 - **Hosting**: Can be deployed to GitHub Pages automatically
 
@@ -59,8 +74,8 @@ Joke Camera combines text-to-speech joke telling with real-time face detection t
 - **Camera**: Same WebRTC-based camera as web version
 - **Face Detection**: Same face-api.js as web version
 - **Speech**: Same Web Speech API as web version
-- **Distribution**:
-  - **Windows**: NSIS installer (`.exe`) and portable
+- **Distribution** (artifact naming: `JokeCamera-<version>-<os>-<arch>.<ext>`):
+  - **Windows**: NSIS installer (`.exe`) and portable build
   - **macOS**: DMG disk image (x64 + arm64)
   - **Linux**: AppImage and `.deb` package
 
@@ -133,27 +148,26 @@ Joke Camera combines text-to-speech joke telling with real-time face detection t
 
 ## Installation
 
-### Android
-Download the latest APK from the [Releases](https://github.com/socrtwo/JokeCamera/releases) page.
+Grab the latest build from the [Releases](https://github.com/socrtwo/JokeCamera/releases) page.
 
-### iOS
+| Platform | File |
+|----------|------|
+| **Android** | `app-debug.apk` |
+| **Windows** | `JokeCamera-3.1.0-win-x64.exe` (NSIS installer) or the portable `.exe` |
+| **macOS (Intel)** | `JokeCamera-3.1.0-mac-x64.dmg` |
+| **macOS (Apple Silicon)** | `JokeCamera-3.1.0-mac-arm64.dmg` |
+| **Linux AppImage** | `JokeCamera-3.1.0-linux-x86_64.AppImage` |
+| **Linux Debian/Ubuntu** | `JokeCamera-3.1.0-linux-amd64.deb` |
+| **Web** | `JokeCamera-web.zip` — extract, open `index.html`, or serve over HTTPS |
+| **iOS** | Build from source with Xcode (see below) |
+
+### iOS (from source)
 1. Open `ios/JokeCamera.xcodeproj` in Xcode 15+
 2. Select your development team for signing
 3. Build and run on your device
 
-### Web
-1. Download `JokeCamera-web.zip` from [Releases](https://github.com/socrtwo/JokeCamera/releases)
-2. Extract and open `index.html` in a modern browser
-3. Or deploy the `web/` folder to any static web host
-
-### Windows
-Download the `.exe` installer from [Releases](https://github.com/socrtwo/JokeCamera/releases).
-
-### macOS
-Download the `.dmg` from [Releases](https://github.com/socrtwo/JokeCamera/releases).
-
-### Linux
-Download the `.AppImage` or `.deb` from [Releases](https://github.com/socrtwo/JokeCamera/releases).
+### Web (online)
+The latest `main` is auto-deployed to GitHub Pages: **https://socrtwo.github.io/JokeCamera/**
 
 ### Desktop (from source)
 ```bash
@@ -179,7 +193,7 @@ APK output: `app/build/outputs/apk/debug/`
 ```bash
 cd ios
 xcodebuild build -project JokeCamera.xcodeproj -scheme JokeCamera \
-  -destination 'platform=iOS Simulator,name=iPhone 15'
+  -destination 'generic/platform=iOS Simulator'
 ```
 
 **Requirements**: Xcode 15.3+, macOS
