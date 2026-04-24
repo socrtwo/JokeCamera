@@ -1,7 +1,8 @@
 {
   "name": "joke-camera",
-  "version": "2.0.0",
+  "version": "3.1.0",
   "description": "Joke Camera - A fun app that tells jokes and captures photos when it detects smiles or laughter",
+  "homepage": "https://github.com/socrtwo/jokecamera",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -63,7 +64,8 @@
         }
       ],
       "icon": "icons",
-      "category": "Entertainment"
+      "category": "Entertainment",
+      "maintainer": "JokeCamera <jokecamera@example.com>"
     },
     "nsis": {
       "oneClick": false,
@@ -76,6 +78,9 @@
     "electron": "^30.0.0",
     "electron-builder": "^24.13.0"
   },
-  "author": "JokeCamera",
+  "author": {
+    "name": "JokeCamera",
+    "email": "jokecamera@example.com"
+  },
   "license": "MIT"
 }

@@ -18,17 +18,21 @@ class FaceDetector {
         this.hasTriggeredThisCycle = false;
         this.smileDetectedForAndMode = false;
         this.video = null;
-        this.animFrameId = null;
+        this.loopTimer = null;
 
         // Thresholds matching Android version
         this.SMILE_THRESHOLD = 0.4;
         this.LAUGH_THRESHOLD = 0.75;
+
+        // Live happiness for meter (smoothed)
+        this.currentHappiness = 0;
 
         // Callbacks
         this.onSmileDetected = null;
         this.onLaughDetected = null;
         this.onFaceDetected = null;
         this.onNoFaceDetected = null;
+        this.onHappinessUpdate = null; // (value 0-1, faceCount)
     }
 
     async initialize() {
@@ -37,19 +41,25 @@ class FaceDetector {
             return false;
         }
 
-        try {
-            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
-            await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
-            ]);
-            this.initialized = true;
-            console.log('Face detection models loaded');
-            return true;
-        } catch (e) {
-            console.error('Failed to load face detection models:', e);
-            return false;
+        const MODEL_URLS = [
+            'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/',
+            'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/'
+        ];
+
+        for (const url of MODEL_URLS) {
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(url),
+                    faceapi.nets.faceExpressionNet.loadFromUri(url)
+                ]);
+                this.initialized = true;
+                console.log('Face detection models loaded from', url);
+                return true;
+            } catch (e) {
+                console.warn('Failed to load models from', url, e);
+            }
         }
+        return false;
     }
 
     setDetectionMode(mode) {
@@ -75,41 +85,56 @@ class FaceDetector {
 
     stop() {
         this.running = false;
-        if (this.animFrameId) {
-            cancelAnimationFrame(this.animFrameId);
-            this.animFrameId = null;
+        if (this.loopTimer) {
+            clearTimeout(this.loopTimer);
+            this.loopTimer = null;
         }
     }
 
     async _detectLoop() {
         if (!this.running || !this.video) return;
 
-        try {
-            const detections = await faceapi
-                .detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions({
-                    inputSize: 224,
-                    scoreThreshold: 0.5
-                }))
-                .withFaceExpressions();
+        // Only run detection when video is ready to avoid errors
+        if (this.video.readyState >= 2 && this.video.videoWidth > 0) {
+            try {
+                const detections = await faceapi
+                    .detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions({
+                        inputSize: 224,
+                        scoreThreshold: 0.5
+                    }))
+                    .withFaceExpressions();
 
-            this._processFaces(detections);
-        } catch (e) {
-            // Ignore transient detection errors
+                this._processFaces(detections);
+            } catch (e) {
+                // Ignore transient detection errors
+            }
         }
 
         // Run at ~5fps for performance
         if (this.running) {
-            this.animFrameId = setTimeout(() => {
-                requestAnimationFrame(() => this._detectLoop());
+            this.loopTimer = setTimeout(() => {
+                if (this.running) this._detectLoop();
             }, 200);
         }
     }
 
     _processFaces(detections) {
         if (!detections || detections.length === 0) {
+            this.currentHappiness = Math.max(0, this.currentHappiness - 0.1);
+            if (this.onHappinessUpdate) this.onHappinessUpdate(this.currentHappiness, 0);
             if (this.onNoFaceDetected) this.onNoFaceDetected();
             return;
         }
+
+        // Find the happiest face for meter
+        let maxHappy = 0;
+        for (const d of detections) {
+            const h = (d.expressions && d.expressions.happy) || 0;
+            if (h > maxHappy) maxHappy = h;
+        }
+        // Smooth (exponential moving average)
+        this.currentHappiness = this.currentHappiness * 0.5 + maxHappy * 0.5;
+        if (this.onHappinessUpdate) this.onHappinessUpdate(this.currentHappiness, detections.length);
 
         if (this.onFaceDetected) this.onFaceDetected(detections.length);
 
@@ -117,8 +142,7 @@ class FaceDetector {
 
         for (const detection of detections) {
             const expressions = detection.expressions;
-            // Use 'happy' expression as smile/laugh proxy
-            const happyProb = expressions.happy || 0;
+            const happyProb = (expressions && expressions.happy) || 0;
 
             const isSmiling = happyProb >= this.SMILE_THRESHOLD;
             const isLaughing = happyProb >= this.LAUGH_THRESHOLD;

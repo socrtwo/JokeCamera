@@ -9,15 +9,25 @@
     const jokeManager = new JokeManager();
     const speechManager = new SpeechManager();
     const faceDetector = new FaceDetector();
+    const FX = (window.Effects || {});
 
     // DOM elements
+    const splash = document.getElementById('splash');
+    const splashStatus = document.getElementById('splash-status');
     const video = document.getElementById('video');
     const captureCanvas = document.getElementById('capture-canvas');
+    const jokeCard = document.getElementById('joke-card');
+    const jokeCategory = document.getElementById('joke-category');
     const jokeSetup = document.getElementById('joke-setup');
     const jokePunchline = document.getElementById('joke-punchline');
     const statusText = document.getElementById('status-text');
     const faceStatus = document.getElementById('face-status');
+    const smileMeter = document.getElementById('smile-meter');
+    const smileMeterFill = document.getElementById('smile-meter-fill');
+    const statsCount = document.getElementById('stats-count');
     const btnStartStop = document.getElementById('btn-start-stop');
+    const btnStartLabel = document.getElementById('btn-start-label');
+    const btnStartEmoji = document.getElementById('btn-start-emoji');
     const btnTellJoke = document.getElementById('btn-tell-joke');
     const btnCapture = document.getElementById('btn-capture');
     const btnSwitchCamera = document.getElementById('btn-switch-camera');
@@ -32,8 +42,9 @@
     let currentJoke = null;
     let photoTaken = false;
     let currentStream = null;
-    let facingMode = 'user'; // 'user' = front, 'environment' = back
+    let facingMode = 'user';
     let pendingTimers = [];
+    let jokesDataVersion = 0;
 
     // Settings (defaults)
     let settings = {
@@ -43,28 +54,56 @@
         timerDelay: 3.0,
         detectionMode: DetectionMode.SMILE_OR_LAUGH,
         punchlineDelay: 0.81,
-        nextJokeWait: 2.5
+        nextJokeWait: 2.5,
+        voiceRate: 1.0,
+        voicePitch: 1.0,
+        confettiEnabled: true,
+        soundEnabled: true,
+        autoSave: true
+    };
+
+    const CATEGORY_LABELS = {
+        'general': '🙂 General',
+        'programming': '💻 Programming',
+        'knock-knock': '🚪 Knock-Knock',
+        'dad': '👨 Dad'
     };
 
     // ---- Initialization ----
 
     async function init() {
-        statusText.textContent = 'Initializing...';
+        setSplashStatus('Loading settings…');
         loadSettings();
         setupEventListeners();
+
+        setSplashStatus('Starting camera…');
         await startCamera();
 
-        statusText.textContent = 'Loading face detection...';
+        setSplashStatus('Loading face detection…');
         const faceLoaded = await faceDetector.initialize();
 
         if (faceLoaded) {
             setupFaceDetection();
             faceDetector.start(video);
+            smileMeter.classList.add('visible');
         } else {
-            statusText.textContent = 'Face detection unavailable - using timer/manual mode';
+            setStatus('Face detection unavailable - timer or manual mode only', false);
+            FX.Toast && FX.Toast.show('⚠️ Face detection offline', 'error');
         }
 
+        // Start reloading full jokes list in background
+        watchJokesData();
+
         updateStatus();
+        hideSplash();
+    }
+
+    function setSplashStatus(text) {
+        if (splashStatus) splashStatus.textContent = text;
+    }
+
+    function hideSplash() {
+        setTimeout(() => splash && splash.classList.add('hidden'), 300);
     }
 
     // ---- Camera ----
@@ -74,7 +113,6 @@
             if (currentStream) {
                 currentStream.getTracks().forEach(t => t.stop());
             }
-
             const constraints = {
                 video: {
                     facingMode: facingMode,
@@ -83,51 +121,60 @@
                 },
                 audio: false
             };
-
             currentStream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = currentStream;
             await video.play();
-
-            // Set mirror for front camera
             video.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
         } catch (e) {
             console.error('Camera error:', e);
-            statusText.textContent = 'Camera access denied or unavailable';
+            setStatus('Camera access denied or unavailable', false);
+            FX.Toast && FX.Toast.show('📷 Camera unavailable', 'error');
         }
     }
 
     function switchCamera() {
         facingMode = facingMode === 'user' ? 'environment' : 'user';
         startCamera();
+        FX.Toast && FX.Toast.show(`Switched to ${facingMode === 'user' ? 'front' : 'back'} camera`, 'info');
     }
 
     // ---- Face Detection Setup ----
 
     function setupFaceDetection() {
         faceDetector.onSmileDetected = () => {
-            faceStatus.textContent = '\u{1F60A} Smile detected!';
+            faceStatus.textContent = '😊 Smile detected!';
             if (isWaitingForReaction && !photoTaken) {
-                statusText.textContent = 'Smile detected - capturing!';
-                setTimeout(() => takePhoto(), 100);
+                setStatus('😊 Smile captured!', true);
+                FX.ReactionLayer && FX.ReactionLayer.spawn('😊', 3);
+                setTimeout(() => takePhoto('smile'), 100);
             }
         };
 
         faceDetector.onLaughDetected = () => {
-            faceStatus.textContent = '\u{1F602} Laugh detected!';
+            faceStatus.textContent = '😂 Laugh detected!';
             if (isWaitingForReaction && !photoTaken) {
-                statusText.textContent = 'Laugh detected - capturing!';
-                setTimeout(() => takePhoto(), 100);
+                setStatus('😂 LOL captured!', true);
+                FX.ReactionLayer && FX.ReactionLayer.spawn('😂', 5);
+                if (settings.confettiEnabled && FX.Confetti) FX.Confetti.burst(100);
+                if (settings.soundEnabled && FX.Sound) FX.Sound.laugh();
+                setTimeout(() => takePhoto('laugh'), 100);
             }
         };
 
         faceDetector.onFaceDetected = (count) => {
             if (!isWaitingForReaction) {
-                faceStatus.textContent = `\u{1F464} ${count} face${count > 1 ? 's' : ''} detected`;
+                faceStatus.textContent = `👤 ${count} face${count > 1 ? 's' : ''} detected`;
             }
         };
 
         faceDetector.onNoFaceDetected = () => {
-            faceStatus.textContent = 'No face detected';
+            faceStatus.textContent = '👁 Looking for a face…';
+        };
+
+        faceDetector.onHappinessUpdate = (happiness) => {
+            if (smileMeterFill) {
+                smileMeterFill.style.width = Math.min(100, happiness * 100) + '%';
+            }
         };
     }
 
@@ -135,7 +182,7 @@
 
     function tellJoke() {
         if (!speechManager.isAvailable()) {
-            statusText.textContent = 'Speech not available in this browser';
+            setStatus('Speech not available in this browser', false);
             return;
         }
 
@@ -145,36 +192,60 @@
         faceDetector.resetDetectionState();
         clearPendingTimers();
 
-        // Display setup
-        jokeSetup.textContent = currentJoke.setup;
-        jokePunchline.textContent = '';
-        statusText.textContent = 'Telling joke...';
+        // Update UI
+        jokeCard.classList.remove('visible');
+        jokePunchline.classList.remove('visible');
 
-        // Speak joke
-        speechManager.tellJoke(currentJoke, settings.punchlineDelay, () => {
-            onJokeComplete();
-        });
+        // Brief delay for exit animation, then display setup
+        setTimeout(() => {
+            jokeCategory.textContent = CATEGORY_LABELS[currentJoke.type] || currentJoke.type;
+            jokeSetup.textContent = currentJoke.setup;
+            jokePunchline.textContent = '';
+            jokeCard.classList.add('visible');
+            setStatus('🎤 Telling joke…', true);
+        }, 120);
+
+        speechManager.setRate(0.95 * settings.voiceRate);
+        speechManager.setPitch(settings.voicePitch);
+
+        speechManager.tellJoke(
+            currentJoke,
+            settings.punchlineDelay,
+            () => onJokeComplete(),
+            () => {
+                // Setup finished - now reveal punchline text along with the spoken punchline
+                if (currentJoke) {
+                    jokePunchline.textContent = currentJoke.punchline;
+                    jokePunchline.classList.add('visible');
+                }
+            }
+        );
+        updateStatsPill();
     }
 
     function onJokeComplete() {
         if (!currentJoke) return;
 
-        jokePunchline.textContent = currentJoke.punchline;
+        // Ensure punchline is shown (in case setup callback didn't fire)
+        if (!jokePunchline.classList.contains('visible')) {
+            jokePunchline.textContent = currentJoke.punchline;
+            jokePunchline.classList.add('visible');
+        }
 
         if (settings.timerMode) {
-            statusText.textContent = `Taking photo in ${settings.timerDelay}s...`;
+            setStatus(`📸 Taking photo in ${settings.timerDelay.toFixed(1)}s…`, true);
             const tid = setTimeout(() => {
-                if (!photoTaken) takePhoto();
+                if (!photoTaken) takePhoto('timer');
             }, settings.timerDelay * 1000);
             pendingTimers.push(tid);
         } else if (settings.detectionEnabled && faceDetector.initialized) {
             isWaitingForReaction = true;
             faceDetector.allowNewDetection();
-            statusText.textContent = 'Waiting for smile/laugh...';
+            setStatus('👀 Waiting for smile or laugh…', true);
 
             const tid = setTimeout(() => {
                 if (!photoTaken && isAutoMode) {
-                    statusText.textContent = 'No reaction - telling another joke...';
+                    setStatus('🎭 No reaction - telling another joke…', true);
                     isWaitingForReaction = false;
                     const tid2 = setTimeout(() => tellJoke(), 500);
                     pendingTimers.push(tid2);
@@ -182,7 +253,7 @@
             }, settings.nextJokeWait * 1000);
             pendingTimers.push(tid);
         } else {
-            statusText.textContent = 'Joke told - capture manually';
+            setStatus('✅ Joke told - capture manually', false);
             isWaitingForReaction = false;
 
             if (isAutoMode) {
@@ -196,7 +267,7 @@
 
     // ---- Photo Capture ----
 
-    function takePhoto() {
+    function takePhoto(reason) {
         if (photoTaken) return;
         photoTaken = true;
         isWaitingForReaction = false;
@@ -208,31 +279,56 @@
         setTimeout(() => {
             flashOverlay.classList.remove('flash');
             flashOverlay.classList.add('hidden');
-        }, 300);
+        }, 320);
 
-        // Capture frame from video
+        // Capture-button feedback
+        btnCapture.classList.add('flashing');
+        setTimeout(() => btnCapture.classList.remove('flashing'), 420);
+
+        // Shutter sound
+        if (settings.soundEnabled && FX.Sound) FX.Sound.shutter();
+
+        if (!video.videoWidth || !video.videoHeight) {
+            setStatus('⚠️ Camera not ready', false);
+            photoTaken = false;
+            return;
+        }
+
         captureCanvas.width = video.videoWidth;
         captureCanvas.height = video.videoHeight;
         const ctx = captureCanvas.getContext('2d');
 
-        // Mirror if front camera
+        ctx.save();
         if (facingMode === 'user') {
             ctx.translate(captureCanvas.width, 0);
             ctx.scale(-1, 1);
         }
         ctx.drawImage(video, 0, 0);
+        ctx.restore();
 
-        // Download the photo
         captureCanvas.toBlob((blob) => {
+            if (!blob) {
+                setStatus('⚠️ Capture failed', false);
+                photoTaken = false;
+                return;
+            }
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            a.download = `JokeCamera_${timestamp}.jpg`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const filename = `JokeCamera_${timestamp}.jpg`;
 
-            statusText.textContent = 'Photo captured!';
+            // Add to gallery
+            if (FX.Gallery) FX.Gallery.add(blob, url);
+
+            // Auto-save (download)
+            if (settings.autoSave) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+            }
+
+            setStatus('📸 Photo captured!', true);
+            FX.Toast && FX.Toast.show('📸 Got the shot!', 'success');
 
             if (isAutoMode) {
                 const tid = setTimeout(() => {
@@ -244,7 +340,7 @@
                 const tid = setTimeout(() => {
                     updateStatus();
                     photoTaken = false;
-                }, 2000);
+                }, 2200);
                 pendingTimers.push(tid);
             }
         }, 'image/jpeg', 0.92);
@@ -256,21 +352,28 @@
         isAutoMode = !isAutoMode;
 
         if (isAutoMode) {
-            btnStartStop.textContent = 'Stop';
+            btnStartLabel.textContent = 'Stop';
+            btnStartEmoji.textContent = '⏹';
             btnStartStop.classList.add('active');
+            btnStartStop.title = 'Stop auto mode';
             btnTellJoke.disabled = true;
             btnCapture.disabled = true;
-            statusText.textContent = 'Auto mode - Starting...';
-            const tid = setTimeout(() => tellJoke(), 1000);
+            setStatus('🚀 Auto mode active…', true);
+            if (settings.soundEnabled && FX.Sound) FX.Sound.start();
+            const tid = setTimeout(() => tellJoke(), 800);
             pendingTimers.push(tid);
         } else {
-            btnStartStop.textContent = 'Start Auto';
+            btnStartLabel.textContent = 'Start';
+            btnStartEmoji.textContent = '▶';
             btnStartStop.classList.remove('active');
+            btnStartStop.title = 'Start auto mode';
             btnTellJoke.disabled = false;
             btnCapture.disabled = false;
             isWaitingForReaction = false;
             clearPendingTimers();
             speechManager.stop();
+            jokeCard.classList.remove('visible');
+            if (settings.soundEnabled && FX.Sound) FX.Sound.stop();
             updateStatus();
         }
     }
@@ -281,61 +384,83 @@
         const saved = localStorage.getItem('jokeCameraSettings');
         if (saved) {
             try {
-                Object.assign(settings, JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                Object.assign(settings, parsed);
             } catch (e) { /* use defaults */ }
         }
         applySettingsToUI();
+        faceDetector.setDetectionMode(settings.detectionMode);
+        if (FX.Sound) FX.Sound.setEnabled(settings.soundEnabled);
     }
 
     function saveSettings() {
-        localStorage.setItem('jokeCameraSettings', JSON.stringify(settings));
+        try {
+            localStorage.setItem('jokeCameraSettings', JSON.stringify(settings));
+        } catch (e) { /* ignore quota */ }
     }
 
     function applySettingsToUI() {
-        document.getElementById('opt-manual-mode').checked = settings.manualMode;
-        document.getElementById('opt-detection').checked = settings.detectionEnabled;
-        document.getElementById('opt-timer-mode').checked = settings.timerMode;
-        document.getElementById('slider-timer-delay').value = settings.timerDelay;
-        document.getElementById('timer-delay-val').textContent = settings.timerDelay.toFixed(1);
-        document.getElementById('slider-punchline-delay').value = settings.punchlineDelay;
-        document.getElementById('punchline-delay-val').textContent = settings.punchlineDelay.toFixed(2);
-        document.getElementById('slider-next-joke-wait').value = settings.nextJokeWait;
-        document.getElementById('next-joke-wait-val').textContent = settings.nextJokeWait.toFixed(1);
+        const setChecked = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
-        const modeRadios = document.querySelectorAll('input[name="detection-mode"]');
-        modeRadios.forEach(r => {
+        setChecked('opt-manual-mode', settings.manualMode);
+        setChecked('opt-detection', settings.detectionEnabled);
+        setChecked('opt-timer-mode', settings.timerMode);
+        setChecked('opt-confetti', settings.confettiEnabled);
+        setChecked('opt-sound-fx', settings.soundEnabled);
+        setChecked('opt-auto-save', settings.autoSave);
+
+        setVal('slider-timer-delay', settings.timerDelay);
+        setText('timer-delay-val', settings.timerDelay.toFixed(1));
+        setVal('slider-punchline-delay', settings.punchlineDelay);
+        setText('punchline-delay-val', settings.punchlineDelay.toFixed(2));
+        setVal('slider-next-joke-wait', settings.nextJokeWait);
+        setText('next-joke-wait-val', settings.nextJokeWait.toFixed(1));
+        setVal('slider-voice-rate', settings.voiceRate);
+        setText('voice-rate-val', settings.voiceRate.toFixed(2));
+        setVal('slider-voice-pitch', settings.voicePitch);
+        setText('voice-pitch-val', settings.voicePitch.toFixed(2));
+
+        document.querySelectorAll('input[name="detection-mode"]').forEach(r => {
             r.checked = parseInt(r.value) === settings.detectionMode;
         });
 
         btnTellJoke.style.display = settings.manualMode ? '' : 'none';
 
-        // Category checkboxes
         const cats = jokeManager.enabledCategories;
-        document.getElementById('cat-general').checked = cats.includes('general');
-        document.getElementById('cat-programming').checked = cats.includes('programming');
-        document.getElementById('cat-knock-knock').checked = cats.includes('knock-knock');
-        document.getElementById('cat-dad').checked = cats.includes('dad');
+        setChecked('cat-general', cats.includes('general'));
+        setChecked('cat-programming', cats.includes('programming'));
+        setChecked('cat-knock-knock', cats.includes('knock-knock'));
+        setChecked('cat-dad', cats.includes('dad'));
 
         updateJokeStats();
     }
 
     function readSettingsFromUI() {
-        settings.manualMode = document.getElementById('opt-manual-mode').checked;
-        settings.detectionEnabled = document.getElementById('opt-detection').checked;
-        settings.timerMode = document.getElementById('opt-timer-mode').checked;
-        settings.timerDelay = parseFloat(document.getElementById('slider-timer-delay').value);
-        settings.punchlineDelay = parseFloat(document.getElementById('slider-punchline-delay').value);
-        settings.nextJokeWait = parseFloat(document.getElementById('slider-next-joke-wait').value);
+        const getChecked = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
+        const getFloat = (id) => { const el = document.getElementById(id); return el ? parseFloat(el.value) : 0; };
+
+        settings.manualMode = getChecked('opt-manual-mode');
+        settings.detectionEnabled = getChecked('opt-detection');
+        settings.timerMode = getChecked('opt-timer-mode');
+        settings.confettiEnabled = getChecked('opt-confetti');
+        settings.soundEnabled = getChecked('opt-sound-fx');
+        settings.autoSave = getChecked('opt-auto-save');
+        settings.timerDelay = getFloat('slider-timer-delay');
+        settings.punchlineDelay = getFloat('slider-punchline-delay');
+        settings.nextJokeWait = getFloat('slider-next-joke-wait');
+        settings.voiceRate = getFloat('slider-voice-rate');
+        settings.voicePitch = getFloat('slider-voice-pitch');
 
         const modeRadio = document.querySelector('input[name="detection-mode"]:checked');
         settings.detectionMode = modeRadio ? parseInt(modeRadio.value) : DetectionMode.SMILE_OR_LAUGH;
 
-        // Categories
         const cats = [];
-        if (document.getElementById('cat-general').checked) cats.push('general');
-        if (document.getElementById('cat-programming').checked) cats.push('programming');
-        if (document.getElementById('cat-knock-knock').checked) cats.push('knock-knock');
-        if (document.getElementById('cat-dad').checked) cats.push('dad');
+        if (getChecked('cat-general')) cats.push('general');
+        if (getChecked('cat-programming')) cats.push('programming');
+        if (getChecked('cat-knock-knock')) cats.push('knock-knock');
+        if (getChecked('cat-dad')) cats.push('dad');
         if (cats.length === 0) {
             cats.push('general');
             document.getElementById('cat-general').checked = true;
@@ -344,17 +469,38 @@
 
         btnTellJoke.style.display = settings.manualMode ? '' : 'none';
         faceDetector.setDetectionMode(settings.detectionMode);
+        if (FX.Sound) FX.Sound.setEnabled(settings.soundEnabled);
 
         saveSettings();
         updateJokeStats();
+        updateStatsPill();
     }
 
     function updateJokeStats() {
         const remaining = jokeManager.getRemainingCount();
         const total = jokeManager.getTotalCount();
         const told = total - remaining;
-        document.getElementById('joke-stats').textContent =
-            `Jokes told: ${told} / ${total} (${remaining} remaining)`;
+        const el = document.getElementById('joke-stats');
+        if (el) el.textContent = `Told ${told} of ${total} · ${remaining} remaining`;
+    }
+
+    function updateStatsPill() {
+        if (!statsCount) return;
+        const remaining = jokeManager.getRemainingCount();
+        statsCount.textContent = remaining;
+    }
+
+    // Watch for async joke data load
+    function watchJokesData() {
+        const checkAndRefresh = () => {
+            const total = jokeManager.getTotalCount();
+            if (total !== jokesDataVersion) {
+                jokesDataVersion = total;
+                updateJokeStats();
+                updateStatsPill();
+            }
+        };
+        setInterval(checkAndRefresh, 1000);
     }
 
     // ---- Event Listeners ----
@@ -364,7 +510,7 @@
         btnTellJoke.addEventListener('click', () => {
             if (speechManager.isAvailable()) tellJoke();
         });
-        btnCapture.addEventListener('click', takePhoto);
+        btnCapture.addEventListener('click', () => takePhoto('manual'));
         btnSwitchCamera.addEventListener('click', switchCamera);
 
         btnSettings.addEventListener('click', () => {
@@ -377,41 +523,59 @@
             updateStatus();
         });
 
+        // Close settings on backdrop click
+        const backdrop = settingsPanel.querySelector('.settings-backdrop');
+        if (backdrop) backdrop.addEventListener('click', () => {
+            readSettingsFromUI();
+            settingsPanel.classList.add('hidden');
+            updateStatus();
+        });
+
         // Settings change handlers
-        ['opt-manual-mode', 'opt-detection', 'opt-timer-mode'].forEach(id => {
-            document.getElementById(id).addEventListener('change', readSettingsFromUI);
+        ['opt-manual-mode', 'opt-detection', 'opt-timer-mode', 'opt-confetti', 'opt-sound-fx', 'opt-auto-save'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', readSettingsFromUI);
         });
         document.querySelectorAll('input[name="detection-mode"]').forEach(r => {
             r.addEventListener('change', readSettingsFromUI);
         });
 
-        // Sliders
-        document.getElementById('slider-timer-delay').addEventListener('input', (e) => {
-            document.getElementById('timer-delay-val').textContent = parseFloat(e.target.value).toFixed(1);
-            readSettingsFromUI();
-        });
-        document.getElementById('slider-punchline-delay').addEventListener('input', (e) => {
-            document.getElementById('punchline-delay-val').textContent = parseFloat(e.target.value).toFixed(2);
-            readSettingsFromUI();
-        });
-        document.getElementById('slider-next-joke-wait').addEventListener('input', (e) => {
-            document.getElementById('next-joke-wait-val').textContent = parseFloat(e.target.value).toFixed(1);
-            readSettingsFromUI();
-        });
+        // Sliders with live label update
+        function wireSlider(sliderId, labelId, formatter, onChange) {
+            const slider = document.getElementById(sliderId);
+            const label = document.getElementById(labelId);
+            if (!slider) return;
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (label) label.textContent = formatter(val);
+                if (onChange) onChange(val);
+                readSettingsFromUI();
+            });
+        }
+        wireSlider('slider-timer-delay', 'timer-delay-val', v => v.toFixed(1));
+        wireSlider('slider-punchline-delay', 'punchline-delay-val', v => v.toFixed(2));
+        wireSlider('slider-next-joke-wait', 'next-joke-wait-val', v => v.toFixed(1));
+        wireSlider('slider-voice-rate', 'voice-rate-val', v => v.toFixed(2));
+        wireSlider('slider-voice-pitch', 'voice-pitch-val', v => v.toFixed(2));
 
         // Category checkboxes
         ['cat-general', 'cat-programming', 'cat-knock-knock', 'cat-dad'].forEach(id => {
-            document.getElementById(id).addEventListener('change', readSettingsFromUI);
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', readSettingsFromUI);
         });
 
         // Joke management
-        document.getElementById('btn-reset-jokes').addEventListener('click', () => {
+        const btnReset = document.getElementById('btn-reset-jokes');
+        if (btnReset) btnReset.addEventListener('click', () => {
             jokeManager.resetToldJokes();
             updateJokeStats();
+            updateStatsPill();
             updateStatus();
+            FX.Toast && FX.Toast.show('🔄 Joke history reset', 'success');
         });
 
-        document.getElementById('btn-export-jokes').addEventListener('click', () => {
+        const btnExport = document.getElementById('btn-export-jokes');
+        if (btnExport) btnExport.addEventListener('click', () => {
             const json = jokeManager.exportJokesAsJson();
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -420,31 +584,89 @@
             a.download = 'jokes_export.json';
             a.click();
             URL.revokeObjectURL(url);
+            FX.Toast && FX.Toast.show('⬇️ Jokes exported', 'success');
         });
 
-        document.getElementById('file-import-jokes').addEventListener('change', (e) => {
+        const fileImport = document.getElementById('file-import-jokes');
+        if (fileImport) fileImport.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (ev) => {
                 try {
                     const count = jokeManager.importJokes(ev.target.result, false);
-                    alert(`Imported ${count} jokes!`);
+                    FX.Toast && FX.Toast.show(`✅ Imported ${count} jokes!`, 'success');
                     updateJokeStats();
+                    updateStatsPill();
                 } catch (err) {
-                    alert('Error importing jokes: ' + err.message);
+                    FX.Toast && FX.Toast.show('❌ Import failed: ' + err.message, 'error');
                 }
             };
             reader.readAsText(file);
             e.target.value = '';
         });
+
+        const btnClearPhotos = document.getElementById('btn-clear-photos');
+        if (btnClearPhotos) btnClearPhotos.addEventListener('click', () => {
+            if (FX.Gallery) FX.Gallery.clear();
+            FX.Toast && FX.Toast.show('🗑️ Gallery cleared', 'success');
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (!settingsPanel.classList.contains('hidden')) {
+                if (e.key === 'Escape') {
+                    readSettingsFromUI();
+                    settingsPanel.classList.add('hidden');
+                }
+                return;
+            }
+            switch (e.key) {
+                case ' ':
+                case 'Spacebar':
+                    e.preventDefault();
+                    takePhoto('keyboard');
+                    break;
+                case 'j':
+                case 'J':
+                    if (speechManager.isAvailable()) tellJoke();
+                    break;
+                case 's':
+                case 'S':
+                    toggleAutoMode();
+                    break;
+                case 'c':
+                case 'C':
+                    switchCamera();
+                    break;
+                case ',':
+                    applySettingsToUI();
+                    settingsPanel.classList.remove('hidden');
+                    break;
+            }
+        });
+
+        // Resume AudioContext on first user gesture (browser autoplay policy)
+        const resumeAudio = () => {
+            if (FX.Sound) FX.Sound._getCtx && FX.Sound._getCtx();
+        };
+        document.addEventListener('click', resumeAudio, { once: true });
+        document.addEventListener('touchstart', resumeAudio, { once: true });
     }
 
     // ---- Utility ----
 
+    function setStatus(text, active) {
+        statusText.textContent = text;
+        if (active) statusText.classList.add('active');
+        else statusText.classList.remove('active');
+    }
+
     function updateStatus() {
         const remaining = jokeManager.getRemainingCount();
-        statusText.textContent = `Ready - ${remaining} jokes remaining`;
+        setStatus(`Ready · ${remaining} jokes remaining · Press ▶ to start`, false);
+        updateStatsPill();
     }
 
     function clearPendingTimers() {
@@ -453,5 +675,9 @@
     }
 
     // ---- Start ----
-    document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();
