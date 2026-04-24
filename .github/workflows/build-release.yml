@@ -142,13 +142,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Show Xcode version
+      run: xcodebuild -version
+
     - name: Build iOS (Simulator)
       working-directory: ios
       run: |
         xcodebuild build \
           -project JokeCamera.xcodeproj \
           -scheme JokeCamera \
-          -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+          -destination 'generic/platform=iOS Simulator' \
           -configuration Release \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
