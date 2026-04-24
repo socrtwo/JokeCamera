@@ -1,0 +1,130 @@
+# Drop-in GitHub Pages workflow with per-release archive subfolders.
+#
+# HOW TO USE IN A NEW REPO
+# 1. Rename this file to `.github/workflows/pages.yml` in the target repo.
+# 2. Edit WEB_DIR and ASSET_NAME below to match your repo:
+#      - WEB_DIR:    the folder containing your static site source (e.g. `web`, `docs`, `site`).
+#      - ASSET_NAME: the filename of the web ZIP attached to each GitHub Release
+#                    (e.g. `MyApp-web.zip`). Leave blank to skip the per-release archive
+#                    and just serve the current branch.
+# 3. In the target repo, Settings → Pages → Source → "GitHub Actions".
+# 4. Push to main (or trigger "Run workflow"). Pages will start publishing:
+#      /                -> newest release (or current main if none)
+#      /latest/         -> same as root
+#      /main/           -> live tip of main
+#      /vX.Y.Z/         -> each release's archived web build
+#      /versions.html   -> browsable index of all versions
+
+name: Deploy Pages (versioned)
+
+on:
+  push:
+    branches: [ main, master ]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  WEB_DIR: web               # <-- change to your site source folder
+  ASSET_NAME: MyApp-web.zip  # <-- change to your release zip name (or leave blank)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Assemble versioned site
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p public
+
+        if [ ! -d "$WEB_DIR" ]; then
+          echo "Web dir '$WEB_DIR' not found; nothing to deploy" >&2
+          exit 1
+        fi
+
+        mkdir -p public/main
+        cp -r "$WEB_DIR"/. public/main/
+
+        newest_dir=""
+        newest_tag=""
+        if [ -n "${ASSET_NAME:-}" ]; then
+          mapfile -t releases < <(gh api \
+            "/repos/${{ github.repository }}/releases?per_page=100" --paginate \
+            --jq ".[] | select(.draft==false) | [.tag_name, (.assets[]? | select(.name==\"$ASSET_NAME\") | .browser_download_url)] | @tsv" \
+            || true)
+
+          for line in "${releases[@]:-}"; do
+            [ -z "$line" ] && continue
+            tag=$(printf '%s' "$line" | cut -f1)
+            url=$(printf '%s' "$line" | cut -f2)
+            [ -z "$tag" ] || [ -z "$url" ] && continue
+            dest="public/${tag}"
+            mkdir -p "$dest"
+            if curl -fsSL "$url" -o "/tmp/web-${tag}.zip"; then
+              unzip -q "/tmp/web-${tag}.zip" -d "$dest"
+              if [ -z "$newest_dir" ]; then newest_tag="$tag"; newest_dir="$dest"; fi
+            else
+              rmdir "$dest" 2>/dev/null || true
+            fi
+          done
+        fi
+
+        if [ -n "$newest_dir" ]; then
+          cp -r "$newest_dir"/. public/
+          mkdir -p public/latest
+          cp -r "$newest_dir"/. public/latest/
+        else
+          cp -r "$WEB_DIR"/. public/
+          mkdir -p public/latest
+          cp -r "$WEB_DIR"/. public/latest/
+        fi
+
+        # Simple versions index
+        current_label="${newest_tag:-main}"
+        {
+          printf '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+          printf '<meta name="viewport" content="width=device-width, initial-scale=1">'
+          printf '<title>All Versions</title>'
+          printf '<style>body{font-family:system-ui,sans-serif;max-width:560px;margin:40px auto;padding:20px;background:#0f0322;color:#f5f3ff}'
+          printf 'a{display:flex;justify-content:space-between;padding:14px 18px;margin:10px 0;text-decoration:none;color:#f5f3ff;'
+          printf 'background:rgba(20,10,40,.55);border:1px solid rgba(255,255,255,.1);border-radius:14px}'
+          printf 'a:hover{border-color:#7c3aed}h1{background:linear-gradient(90deg,#ff2e93,#22d3ee);'
+          printf '-webkit-background-clip:text;-webkit-text-fill-color:transparent}</style></head><body>'
+          printf '<h1>All Versions</h1>'
+          printf '<a href="./">Latest (%s)</a><a href="./main/">main</a>' "$current_label"
+        } > public/versions.html
+        for dir in public/v*/; do
+          [ -d "$dir" ] || continue
+          ver=$(basename "$dir")
+          printf '<a href="./%s/">%s</a>' "$ver" "$ver" >> public/versions.html
+        done
+        printf '</body></html>' >> public/versions.html
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: public/
+
+    - name: Deploy
+      id: deployment
+      uses: actions/deploy-pages@v4

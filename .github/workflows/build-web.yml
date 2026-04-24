@@ -5,6 +5,8 @@ on:
     branches: [ main, master ]
     paths:
       - 'web/**'
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -12,10 +14,14 @@ permissions:
   pages: write
   id-token: write
 
+# Allow only one concurrent deployment; cancel any queued older ones.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
 
@@ -26,11 +32,16 @@ jobs:
         path: web/
         retention-days: 30
 
-  # Optional: Deploy to GitHub Pages
+  # Assemble a versioned site:
+  #   /                -> newest release (or current main if no releases yet)
+  #   /latest/         -> same as root (explicit alias)
+  #   /main/           -> live tip of main (may be ahead of latest release)
+  #   /vX.Y.Z/         -> the web build that shipped with each release
+  #   /versions.html   -> navigable index of every version
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
 
     environment:
       name: github-pages
@@ -39,13 +50,131 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Assemble versioned Pages site
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p public
+
+        # ---- 1. /main/ = current tip of main ----
+        mkdir -p public/main
+        cp -r web/. public/main/
+
+        # ---- 2. For every release with a JokeCamera-web.zip, /<tag>/ ----
+        mapfile -t releases < <(gh api \
+          "/repos/${{ github.repository }}/releases?per_page=100" --paginate \
+          --jq '.[] | select(.draft==false) | [.tag_name, (.assets[]? | select(.name=="JokeCamera-web.zip") | .browser_download_url)] | @tsv' \
+          || true)
+
+        newest_tag=""
+        newest_dir=""
+        for line in "${releases[@]:-}"; do
+          [ -z "$line" ] && continue
+          tag=$(printf '%s' "$line" | cut -f1)
+          url=$(printf '%s' "$line" | cut -f2)
+          [ -z "$tag" ] || [ -z "$url" ] && continue
+          dest="public/${tag}"
+          echo "::group::Download $tag"
+          mkdir -p "$dest"
+          if curl -fsSL "$url" -o "/tmp/web-${tag}.zip"; then
+            unzip -q "/tmp/web-${tag}.zip" -d "$dest"
+            if [ -z "$newest_tag" ]; then
+              newest_tag="$tag"
+              newest_dir="$dest"
+            fi
+          else
+            echo "Could not download $url; skipping"
+            rmdir "$dest" 2>/dev/null || true
+          fi
+          echo "::endgroup::"
+        done
+
+        # ---- 3. Root (/) serves the newest release; fall back to main if none ----
+        if [ -n "$newest_dir" ]; then
+          echo "Publishing $newest_tag at site root"
+          cp -r "$newest_dir"/. public/
+          mkdir -p public/latest
+          cp -r "$newest_dir"/. public/latest/
+        else
+          echo "No published releases yet; serving main/ at site root"
+          cp -r web/. public/
+          mkdir -p public/latest
+          cp -r web/. public/latest/
+        fi
+
+        # ---- 4. /versions.html — browsable index ----
+        current_label="${newest_tag:-main}"
+        {
+          cat <<EOF
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Joke Camera — All Versions</title>
+        <style>
+          :root { color-scheme: dark; }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            background: radial-gradient(ellipse at top, #0f0322 0%, #08010f 70%);
+            color: #f5f3ff; min-height: 100vh; padding: 40px 20px;
+          }
+          .wrap { max-width: 560px; margin: 0 auto; }
+          h1 {
+            font-size: 2rem; margin-bottom: 6px;
+            background: linear-gradient(90deg,#ff2e93 0%,#22d3ee 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          }
+          p.sub { color: rgba(245,243,255,0.6); margin-bottom: 28px; font-size: 0.9rem; }
+          a.card {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; margin: 10px 0; text-decoration: none;
+            color: #f5f3ff; background: rgba(20,10,40,0.55);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+            backdrop-filter: blur(10px); transition: transform .15s, border-color .15s, background .15s;
+          }
+          a.card:hover { transform: translateY(-2px); border-color: #7c3aed; background: rgba(124,58,237,0.15); }
+          .tag { font-weight: 700; font-size: 1.05rem; }
+          .badge { font-size: 0.72rem; padding: 3px 10px; border-radius: 999px;
+            background: linear-gradient(135deg,#ff2e93,#7c3aed); text-transform: uppercase;
+            letter-spacing: 0.08em; font-weight: 700; }
+          .muted { color: rgba(245,243,255,0.55); font-size: 0.8rem; }
+        </style>
+        </head>
+        <body>
+        <div class="wrap">
+          <h1>📸 Joke Camera — All Versions</h1>
+          <p class="sub">Every shipped web build is archived here. Bookmark any version for a stable URL.</p>
+          <a class="card" href="./"><span class="tag">Latest ($current_label)</span><span class="badge">Live</span></a>
+          <a class="card" href="./main/"><span class="tag">main</span><span class="muted">tip of default branch</span></a>
+        EOF
+        } > public/versions.html
+
+        for dir in public/v*/; do
+          [ -d "$dir" ] || continue
+          ver=$(basename "$dir")
+          printf '  <a class="card" href="./%s/"><span class="tag">%s</span><span class="muted">archived</span></a>\n' "$ver" "$ver" >> public/versions.html
+        done
+
+        cat >> public/versions.html <<'EOF'
+        </div>
+        </body>
+        </html>
+        EOF
+
+        echo "---- Final site contents ----"
+        find public -maxdepth 2 -type d | sort
+
     - name: Setup Pages
       uses: actions/configure-pages@v4
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: web/
+        path: public/
 
     - name: Deploy to GitHub Pages
       id: deployment
