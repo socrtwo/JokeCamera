@@ -14,6 +14,7 @@
   "build": {
     "appId": "com.jokecamera.desktop",
     "productName": "Joke Camera",
+    "artifactName": "JokeCamera-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },
