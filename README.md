@@ -252,12 +252,32 @@ JokeCamera/
 3. **Angle**: Face the camera directly for best detection
 4. **Multiple Faces**: The app can detect multiple faces simultaneously
 5. **Browser**: For web version, use Chrome or Edge for best Web Speech API support
+6. **Keyboard (Web/Desktop)**:
+   - `Space` — Take photo
+   - `J` — Tell a joke
+   - `S` — Start / stop auto mode
+   - `C` — Switch camera
+   - `,` — Open settings
+   - `Esc` — Close settings
 
 ## License
 
 This project is provided for personal and educational use.
 
 ## Version History
+
+- **3.1.0**: Fun & modern web/desktop refresh
+  - Modernized web UI: glassmorphism cards, animated gradient orbs, splash screen
+  - Floating emoji reactions when smiles/laughs are detected
+  - Confetti bursts on laugh detection (toggle-able)
+  - Generated sound effects: shutter click, laugh chime, start/stop tones
+  - Live happiness meter showing smile probability in real time
+  - Inline photo gallery strip with tap-to-preview modal and download
+  - Keyboard shortcuts: **Space** capture · **J** joke · **S** start/stop · **C** switch camera · **,** settings
+  - Voice speed and pitch sliders
+  - Toast notifications for feedback
+  - Punchline appears with a pop animation synced to TTS
+  - Stress-tested with 452 jokes, 50-cycle settings toggling, 100 confetti bursts — no leaks, <3 MB JS heap
 
 - **3.0.0**: Multi-platform release
   - Added iOS version (Swift/SwiftUI, Vision framework)
