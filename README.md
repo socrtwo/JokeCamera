@@ -1,5 +1,10 @@
 # Joke Camera
 
+<!--PAGES_LINK_BANNER-->
+> 🌐 **Live page:** [https://socrtwo.github.io/JokeCamera/](https://socrtwo.github.io/JokeCamera/)  
+> 📦 **Releases:** [github.com/socrtwo/JokeCamera/releases](https://github.com/socrtwo/JokeCamera/releases)
+<!--/PAGES_LINK_BANNER-->
+
 A fun multi-platform app that tells jokes and automatically captures photos when it detects smiles or laughter!
 
 Available for **Android**, **iOS**, **Windows**, **macOS**, **Linux**, and **Web**.
