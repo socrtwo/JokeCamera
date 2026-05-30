@@ -54,6 +54,73 @@ jobs:
         name: JokeCamera-web
         path: JokeCamera-web.zip
 
+  # ChromeOS (web bundle - installable from Chrome)
+  build-chromeos:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Package ChromeOS bundle
+      run: |
+        rm -rf _chromeos && mkdir -p _chromeos/app
+        cp -r web/. _chromeos/app/
+        {
+          echo "Joke Camera - ChromeOS"
+          echo ""
+          echo "ChromeOS runs this web app directly; no APK or extension needed."
+          echo ""
+          echo "Use it:"
+          echo "  1. Unzip into Files -> My files."
+          echo "  2. Open app/index.html in Chrome."
+          echo ""
+          echo "Install as an app: open the hosted version in Chrome and use the"
+          echo "address-bar install icon (or menu -> Install) so it appears in your"
+          echo "launcher. Play-Store Chromebooks can alternatively sideload the"
+          echo "Android APK from this same release."
+        } > _chromeos/INSTALL-CHROMEOS.txt
+        ( cd _chromeos && zip -r ../JokeCamera-chromeos.zip . )
+
+    - name: Upload ChromeOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-chromeos
+        path: JokeCamera-chromeos.zip
+
+  # iOS PWA bundle (installable via Safari -> Add to Home Screen, no Apple cert).
+  # The native Xcode build (build-ios) is simulator-only and needs signing for a
+  # real device, so this PWA is the iOS deliverable attached to the release.
+  build-ios-pwa:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Package iOS PWA bundle
+      run: |
+        rm -rf _ios && mkdir -p _ios/app
+        cp -r web/. _ios/app/
+        {
+          echo "Joke Camera - iOS / iPadOS"
+          echo ""
+          echo "Install as a web app (no App Store or Apple Developer account needed):"
+          echo "  1. Open the hosted app in Safari on your iPhone/iPad."
+          echo "  2. Tap the Share button."
+          echo "  3. Tap \"Add to Home Screen\"."
+          echo ""
+          echo "Offline use: unzip this bundle and open app/index.html in Safari."
+          echo ""
+          echo "A native iOS app can also be built from the ios/ Xcode project"
+          echo "(requires an Apple Developer certificate for device install)."
+        } > _ios/INSTALL-IOS.txt
+        ( cd _ios && zip -r ../JokeCamera-ios.zip . )
+
+    - name: Upload iOS PWA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-ios
+        path: JokeCamera-ios.zip
+
   # Windows Desktop
   build-windows:
     runs-on: windows-latest
@@ -159,7 +226,7 @@ jobs:
 
   # Create GitHub Release with all artifacts
   release:
-    needs: [build-android, build-web, build-windows, build-macos, build-linux, build-ios]
+    needs: [build-android, build-web, build-chromeos, build-ios-pwa, build-windows, build-macos, build-linux, build-ios]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -179,6 +246,8 @@ jobs:
         files: |
           artifacts/JokeCamera-android/app-debug.apk
           artifacts/JokeCamera-web/JokeCamera-web.zip
+          artifacts/JokeCamera-chromeos/JokeCamera-chromeos.zip
+          artifacts/JokeCamera-ios/JokeCamera-ios.zip
           artifacts/JokeCamera-windows/*
           artifacts/JokeCamera-macos/*
           artifacts/JokeCamera-linux/*
@@ -191,7 +260,8 @@ jobs:
           - **macOS**: `.dmg` disk image
           - **Linux**: `.AppImage` or `.deb` package
           - **Web**: `JokeCamera-web.zip` - Extract and open `index.html`, or deploy to any web server
-          - **iOS**: Build from source with Xcode (see `ios/` directory)
+          - **ChromeOS**: `JokeCamera-chromeos.zip` - Install the web app from Chrome, or open `app/index.html`
+          - **iOS**: `JokeCamera-ios.zip` - Add to Home Screen in Safari (PWA); or build natively from `ios/` with Xcode
 
           ### What's New
           - Multi-platform support: Android, iOS, Windows, macOS, Linux, Web
