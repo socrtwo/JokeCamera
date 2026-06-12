@@ -135,6 +135,75 @@ jobs:
           desktop/dist/*.AppImage
           desktop/dist/*.deb
 
+  # ChromeOS (web app + install instructions)
+  build-chromeos:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Package ChromeOS App
+      run: |
+        mkdir -p pkg-chromeos
+        cp -r web/. pkg-chromeos/
+        printf '%s\n' \
+          '# Joke Camera on ChromeOS' \
+          '' \
+          '## Recommended: install the hosted app' \
+          '' \
+          '1. Open https://socrtwo.github.io/JokeCamera/ in Chrome.' \
+          '2. Click the Install icon in the address bar (right-hand side).' \
+          '3. Joke Camera is added to your launcher and runs in its own window.' \
+          '' \
+          '## Offline alternative' \
+          '' \
+          'Unzip this archive and open `index.html` in Chrome.' \
+          > pkg-chromeos/INSTALL.md
+        cd pkg-chromeos
+        zip -r ../JokeCamera-chromeos.zip .
+
+    - name: Upload ChromeOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-chromeos
+        path: JokeCamera-chromeos.zip
+
+  # iOS install bundle (web app + Add to Home Screen instructions)
+  build-ios-pwa:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Package iOS App
+      run: |
+        mkdir -p pkg-ios
+        cp -r web/. pkg-ios/
+        printf '%s\n' \
+          '# Joke Camera on iOS / iPadOS' \
+          '' \
+          '## Recommended: add the hosted app to your Home Screen' \
+          '' \
+          '1. Open https://socrtwo.github.io/JokeCamera/ in Safari.' \
+          '2. Tap the Share button.' \
+          '3. Tap "Add to Home Screen", then "Add".' \
+          '4. Launch Joke Camera from the Home Screen icon like a native app.' \
+          '' \
+          '## Native build' \
+          '' \
+          'A native Xcode project is available in the `ios/` directory of the' \
+          'repository for developers who want to build and sign the native app:' \
+          'https://github.com/socrtwo/JokeCamera/tree/main/ios' \
+          > pkg-ios/INSTALL.md
+        cd pkg-ios
+        zip -r ../JokeCamera-ios.zip .
+
+    - name: Upload iOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-ios
+        path: JokeCamera-ios.zip
+
   # iOS (simulator build only - App Store requires signing)
   build-ios:
     runs-on: macos-latest
@@ -159,7 +228,7 @@ jobs:
 
   # Create GitHub Release with all artifacts
   release:
-    needs: [build-android, build-web, build-windows, build-macos, build-linux, build-ios]
+    needs: [build-android, build-web, build-windows, build-macos, build-linux, build-ios, build-chromeos, build-ios-pwa]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -182,6 +251,8 @@ jobs:
           artifacts/JokeCamera-windows/*
           artifacts/JokeCamera-macos/*
           artifacts/JokeCamera-linux/*
+          artifacts/JokeCamera-chromeos/JokeCamera-chromeos.zip
+          artifacts/JokeCamera-ios/JokeCamera-ios.zip
         body: |
           ## Joke Camera - Multi-Platform Release
 
@@ -191,7 +262,8 @@ jobs:
           - **macOS**: `.dmg` disk image
           - **Linux**: `.AppImage` or `.deb` package
           - **Web**: `JokeCamera-web.zip` - Extract and open `index.html`, or deploy to any web server
-          - **iOS**: Build from source with Xcode (see `ios/` directory)
+          - **ChromeOS**: `JokeCamera-chromeos.zip` - Web app + install instructions (open https://socrtwo.github.io/JokeCamera/ in Chrome and click the Install icon in the address bar, or unzip and open `index.html`)
+          - **iOS**: `JokeCamera-ios.zip` - Web app + install instructions (open https://socrtwo.github.io/JokeCamera/ in Safari → Share → Add to Home Screen); native Xcode project in `ios/` for source builds
 
           ### What's New
           - Multi-platform support: Android, iOS, Windows, macOS, Linux, Web
