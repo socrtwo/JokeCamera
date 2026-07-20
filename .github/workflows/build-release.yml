@@ -255,7 +255,7 @@ jobs:
   release:
     needs: [build-android, build-web, build-chromeos, build-ios-pwa, build-windows, build-macos, build-linux, build-ios]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.tag != ''
 
     steps:
     - name: Download all artifacts
