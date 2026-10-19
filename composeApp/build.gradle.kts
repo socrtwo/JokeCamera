@@ -149,16 +149,16 @@ compose.desktop {
 
             macOS {
                 bundleID = "com.jokecamera.app"
-                iconFile.set(project.file("icons/icon.icns"))
+                iconFile.set(project.rootProject.file("desktop/icons/icon.icns"))
             }
 
             windows {
-                iconFile.set(project.file("icons/icon.ico"))
+                iconFile.set(project.rootProject.file("desktop/icons/icon.ico"))
                 menuGroup = "JokeCamera"
             }
 
             linux {
-                iconFile.set(project.file("icons/icon.png"))
+                iconFile.set(project.rootProject.file("desktop/icons/icon.png"))
             }
         }
     }
