@@ -16,6 +16,8 @@ import com.jokecamera.app.model.DetectionMode
 import com.jokecamera.app.model.JokeType
 import com.jokecamera.app.platform.SettingsStore
 import com.jokecamera.app.platform.supportsFaceDetection
+import kotlin.math.abs
+import kotlin.math.round
 
 @Composable
 fun SettingsScreen(
@@ -179,7 +181,8 @@ fun SettingsScreen(
                         value = timerDelay,
                         valueRange = AppSettings.MIN_TIMER_DELAY..AppSettings.MAX_TIMER_DELAY,
                         steps = 19,
-                        format = "%.1f seconds",
+                        decimalPlaces = 1,
+                        unit = " seconds",
                         onValueChange = {
                             timerDelay = it
                             settingsStore.putFloat(AppSettings.KEY_TIMER_DELAY, it)
@@ -220,7 +223,8 @@ fun SettingsScreen(
                 value = punchlineDelay,
                 valueRange = AppSettings.MIN_PUNCHLINE_DELAY..AppSettings.MAX_PUNCHLINE_DELAY,
                 steps = 200,
-                format = "%.2f seconds",
+                decimalPlaces = 2,
+                unit = " seconds",
                 onValueChange = {
                     punchlineDelay = it
                     settingsStore.putFloat(AppSettings.KEY_PUNCHLINE_DELAY, it)
@@ -232,7 +236,8 @@ fun SettingsScreen(
                 value = nextJokeWait,
                 valueRange = AppSettings.MIN_NEXT_JOKE_WAIT..AppSettings.MAX_NEXT_JOKE_WAIT,
                 steps = 19,
-                format = "%.1f seconds",
+                decimalPlaces = 1,
+                unit = " seconds",
                 onValueChange = {
                     nextJokeWait = it
                     settingsStore.putFloat(AppSettings.KEY_NEXT_JOKE_WAIT, it)
@@ -334,7 +339,8 @@ private fun SettingSlider(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
-    format: String,
+    decimalPlaces: Int,
+    unit: String,
     onValueChange: (Float) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -343,7 +349,10 @@ private fun SettingSlider(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(format.format(value), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "${formatSliderValue(value, decimalPlaces)}$unit",
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
         Slider(
             value = value,
@@ -352,6 +361,22 @@ private fun SettingSlider(
             steps = steps
         )
     }
+}
+
+private fun formatSliderValue(value: Float, decimalPlaces: Int): String {
+    val scale = when (decimalPlaces) {
+        1 -> 10
+        2 -> 100
+        else -> 1
+    }
+    val scaledValue = round(value * scale).toInt()
+    val absoluteValue = abs(scaledValue)
+    val sign = if (scaledValue < 0) "-" else ""
+    val wholePart = absoluteValue / scale
+    if (decimalPlaces == 0) return "$sign$wholePart"
+
+    val fractionalPart = (absoluteValue % scale).toString().padStart(decimalPlaces, '0')
+    return "$sign$wholePart.$fractionalPart"
 }
 
 @Composable

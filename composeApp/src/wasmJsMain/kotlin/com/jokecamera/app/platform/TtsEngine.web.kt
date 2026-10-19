@@ -1,6 +1,8 @@
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
 package com.jokecamera.app.platform
 
-import kotlinx.browser.window
+import kotlin.js.JsFun
 
 /**
  * Web TTS engine using the Web Speech API (SpeechSynthesis).
@@ -17,34 +19,19 @@ class WebTtsEngine : TtsEngine {
     }
 
     override fun speak(text: String, queueMode: QueueMode, utteranceId: String) {
-        val synth = window.asDynamic().speechSynthesis
-        if (synth == null || synth == undefined) {
-            utteranceCallback?.invoke(utteranceId)
-            return
+        speakText(text, queueMode == QueueMode.FLUSH, utteranceId) { completedId ->
+            utteranceCallback?.invoke(completedId)
         }
-
-        if (queueMode == QueueMode.FLUSH) {
-            synth.cancel()
-        }
-
-        val utterance = js("new SpeechSynthesisUtterance(text)")
-        utterance.lang = "en-US"
-        utterance.rate = 1.0
-        utterance.onend = {
-            utteranceCallback?.invoke(utteranceId)
-        }
-        synth.speak(utterance)
     }
 
     override fun speakSilence(durationMs: Long, queueMode: QueueMode, utteranceId: String) {
-        window.setTimeout({
-            utteranceCallback?.invoke(utteranceId)
-        }, durationMs.toInt())
+        scheduleCompletion(durationMs.toInt(), utteranceId) { completedId ->
+            utteranceCallback?.invoke(completedId)
+        }
     }
 
     override fun stop() {
-        val synth = window.asDynamic().speechSynthesis
-        synth?.cancel()
+        cancelSpeech()
     }
 
     override fun shutdown() {
@@ -56,5 +43,38 @@ class WebTtsEngine : TtsEngine {
         utteranceCallback = callback
     }
 }
+
+@JsFun(
+    """(text, flush, utteranceId, onComplete) => {
+        const synth = globalThis.speechSynthesis;
+        if (!synth) {
+            onComplete(utteranceId);
+            return;
+        }
+        if (flush) synth.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 1.0;
+        utterance.onend = () => onComplete(utteranceId);
+        synth.speak(utterance);
+    }"""
+)
+private external fun speakText(
+    text: String,
+    flush: Boolean,
+    utteranceId: String,
+    onComplete: (String) -> Unit
+)
+
+@JsFun("(delay, utteranceId, onComplete) => setTimeout(() => onComplete(utteranceId), delay)")
+private external fun scheduleCompletion(
+    delay: Int,
+    utteranceId: String,
+    onComplete: (String) -> Unit
+)
+
+@JsFun("() => { if (globalThis.speechSynthesis) globalThis.speechSynthesis.cancel(); }")
+private external fun cancelSpeech()
 
 actual fun createTtsEngine(): TtsEngine = WebTtsEngine()
