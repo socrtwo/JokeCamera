@@ -39,7 +39,7 @@ class WebTtsEngine : TtsEngine {
             utteranceCallback?.invoke(utteranceId)
         }, durationMs.toInt())
     }
-    override fun stop() {
+
     override fun stop() {
         speechSynthesis?.cancel()
     }

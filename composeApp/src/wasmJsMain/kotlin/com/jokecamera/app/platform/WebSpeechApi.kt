@@ -1,4 +1,4 @@
-@file:JsQualifier("window")
+@file:kotlin.js.JsQualifier("window")
 
 package com.jokecamera.app.platform
 
