@@ -1,0 +1,57 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'ios/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Show Xcode version
+      run: xcodebuild -version
+
+    - name: List available destinations
+      working-directory: ios
+      continue-on-error: true
+      run: xcodebuild -project JokeCamera.xcodeproj -scheme JokeCamera -showdestinations
+
+    - name: Build iOS app (Simulator)
+      working-directory: ios
+      run: |
+        xcodebuild build \
+          -project JokeCamera.xcodeproj \
+          -scheme JokeCamera \
+          -destination 'generic/platform=iOS Simulator' \
+          -configuration Debug \
+          -derivedDataPath build/DerivedData \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Archive build (unsigned, iOS Simulator)
+      working-directory: ios
+      run: |
+        xcodebuild archive \
+          -project JokeCamera.xcodeproj \
+          -scheme JokeCamera \
+          -destination 'generic/platform=iOS Simulator' \
+          -archivePath build/JokeCamera.xcarchive \
+          -configuration Debug \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          SKIP_INSTALL=NO || true
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-ios-build
+        path: ios/build/
+        retention-days: 30

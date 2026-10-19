@@ -66,3 +66,9 @@ lint/tmp/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Node / Electron
+node_modules/
+desktop/dist/
+desktop/node_modules/
+dist/
