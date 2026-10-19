@@ -12,13 +12,10 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
-  # Android APK
   build-android:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
 
@@ -29,242 +26,93 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+    - name: Build Android APK
+      run: ./gradlew :composeApp:assembleDebug
 
     - name: Upload Android APK
       uses: actions/upload-artifact@v4
       with:
         name: JokeCamera-android
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: composeApp/build/outputs/apk/debug/*.apk
 
-  # Web App
-  build-web:
+  build-desktop-linux:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
-
-    - name: Package Web App
-      run: |
-        cd web
-        zip -r ../JokeCamera-web.zip .
-
-    - name: Upload Web artifact
-      uses: actions/upload-artifact@v4
+    - uses: actions/setup-java@v4
       with:
-        name: JokeCamera-web
-        path: JokeCamera-web.zip
-
-  # ChromeOS (web bundle - installable from Chrome)
-  build-chromeos:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Package ChromeOS bundle
-      run: |
-        rm -rf _chromeos && mkdir -p _chromeos/app
-        cp -r web/. _chromeos/app/
-        {
-          echo "Joke Camera - ChromeOS"
-          echo ""
-          echo "ChromeOS runs this web app directly; no APK or extension needed."
-          echo ""
-          echo "Use it:"
-          echo "  1. Unzip into Files -> My files."
-          echo "  2. Open app/index.html in Chrome."
-          echo ""
-          echo "Install as an app: open the hosted version in Chrome and use the"
-          echo "address-bar install icon (or menu -> Install) so it appears in your"
-          echo "launcher. Play-Store Chromebooks can alternatively sideload the"
-          echo "Android APK from this same release."
-        } > _chromeos/INSTALL-CHROMEOS.txt
-        ( cd _chromeos && zip -r ../JokeCamera-chromeos.zip . )
-
-    - name: Upload ChromeOS artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: JokeCamera-chromeos
-        path: JokeCamera-chromeos.zip
-
-  # iOS PWA bundle (installable via Safari -> Add to Home Screen, no Apple cert).
-  # The native Xcode build (build-ios) is simulator-only and needs signing for a
-  # real device, so this PWA is the iOS deliverable attached to the release.
-  build-ios-pwa:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Package iOS PWA bundle
-      run: |
-        rm -rf _ios && mkdir -p _ios/app
-        cp -r web/. _ios/app/
-        {
-          echo "Joke Camera - iOS / iPadOS"
-          echo ""
-          echo "Install as a web app (no App Store or Apple Developer account needed):"
-          echo "  1. Open the hosted app in Safari on your iPhone/iPad."
-          echo "  2. Tap the Share button."
-          echo "  3. Tap \"Add to Home Screen\"."
-          echo ""
-          echo "Offline use: unzip this bundle and open app/index.html in Safari."
-          echo ""
-          echo "A native iOS app can also be built from the ios/ Xcode project"
-          echo "(requires an Apple Developer certificate for device install)."
-        } > _ios/INSTALL-IOS.txt
-        ( cd _ios && zip -r ../JokeCamera-ios.zip . )
-
-    - name: Upload iOS PWA artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: JokeCamera-ios
-        path: JokeCamera-ios.zip
-
-  # Windows Desktop
-  build-windows:
-    runs-on: windows-latest
-    environment: release
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-
-    - name: Install dependencies
-      working-directory: desktop
-      run: npm install
-
-    - name: Build Windows
-      working-directory: desktop
-      run: npm run build:win
-
-    - name: Azure login (OIDC, no stored secret)
-      if: vars.AZURE_TENANT_ID != ''
-      uses: azure/login@v2
-      with:
-        tenant-id: ${{ vars.AZURE_TENANT_ID }}
-        client-id: ${{ vars.AZURE_CLIENT_ID }}
-        subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-    - name: Sign Windows binaries with Azure Trusted Signing
-      if: vars.AZURE_TENANT_ID != ''
-      uses: azure/trusted-signing-action@v0.5.1
-      with:
-        endpoint: ${{ vars.TS_ENDPOINT }}
-        trusted-signing-account-name: ${{ vars.TS_ACCOUNT_NAME }}
-        certificate-profile-name: ${{ vars.TS_CERT_PROFILE }}
-        files-folder: desktop/dist
-        files-folder-filter: exe
-        files-folder-recurse: true
-        file-digest: SHA256
-        timestamp-rfc3161: http://timestamp.acs.microsoft.com
-        timestamp-digest: SHA256
-
-    - name: Upload Windows artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: JokeCamera-windows
-        path: |
-          desktop/dist/*.exe
-
-  # macOS Desktop
-  build-macos:
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-
-    - name: Install dependencies
-      working-directory: desktop
-      run: npm install
-
-    - name: Build macOS
-      working-directory: desktop
-      run: npm run build:mac
-
-    - name: Upload macOS artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: JokeCamera-macos
-        path: desktop/dist/*.dmg
-
-  # Linux Desktop
-  build-linux:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-
-    - name: Install dependencies
-      working-directory: desktop
-      run: npm install
-
-    - name: Build Linux
-      working-directory: desktop
-      run: npm run build:linux
-
-    - name: Upload Linux artifacts
-      uses: actions/upload-artifact@v4
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: chmod +x gradlew
+    - run: ./gradlew :composeApp:packageDeb
+    - uses: actions/upload-artifact@v4
       with:
         name: JokeCamera-linux
-        path: |
-          desktop/dist/*.AppImage
-          desktop/dist/*.deb
+        path: composeApp/build/compose/binaries/main/deb/*.deb
 
-  # iOS (simulator build only - App Store requires signing)
-  build-ios:
+  build-desktop-macos:
     runs-on: macos-latest
-
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: chmod +x gradlew
+    - run: ./gradlew :composeApp:packageDmg
+    - uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-macos
+        path: composeApp/build/compose/binaries/main/dmg/*.dmg
 
-    - name: Show Xcode version
-      run: xcodebuild -version
+  build-desktop-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: ./gradlew :composeApp:packageMsi
+    - uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-windows
+        path: composeApp/build/compose/binaries/main/msi/*.msi
 
-    - name: Build iOS (Simulator)
-      working-directory: ios
-      run: |
-        xcodebuild build \
-          -project JokeCamera.xcodeproj \
-          -scheme JokeCamera \
-          -destination 'generic/platform=iOS Simulator' \
-          -configuration Release \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - run: chmod +x gradlew
+    - run: ./gradlew :composeApp:wasmJsBrowserDistribution
+    - uses: actions/upload-artifact@v4
+      with:
+        name: JokeCamera-web
+        path: composeApp/build/dist/wasmJs/productionExecutable/
 
-  # Create GitHub Release with all artifacts
   release:
-    needs: [build-android, build-web, build-chromeos, build-ios-pwa, build-windows, build-macos, build-linux, build-ios]
+    needs: [build-android, build-desktop-linux, build-desktop-macos, build-desktop-windows, build-web]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.tag != ''
-
     steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
         path: artifacts
-
-    - name: List artifacts
-      run: find artifacts -type f
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
@@ -272,29 +120,11 @@ jobs:
         tag_name: ${{ github.event.inputs.tag || github.ref_name }}
         fail_on_unmatched_files: false
         files: |
-          artifacts/JokeCamera-android/app-debug.apk
-          artifacts/JokeCamera-web/JokeCamera-web.zip
-          artifacts/JokeCamera-chromeos/JokeCamera-chromeos.zip
-          artifacts/JokeCamera-ios/JokeCamera-ios.zip
-          artifacts/JokeCamera-windows/*
-          artifacts/JokeCamera-macos/*
+          artifacts/JokeCamera-android/*
           artifacts/JokeCamera-linux/*
-        body: |
-          ## Joke Camera - Multi-Platform Release
-
-          ### Downloads
-          - **Android**: `app-debug.apk` - Install directly on Android device
-          - **Windows**: `.exe` installer
-          - **macOS**: `.dmg` disk image
-          - **Linux**: `.AppImage` or `.deb` package
-          - **Web**: `JokeCamera-web.zip` - Extract and open `index.html`, or deploy to any web server
-          - **ChromeOS**: `JokeCamera-chromeos.zip` - Install the web app from Chrome, or open `app/index.html`
-          - **iOS**: `JokeCamera-ios.zip` - Add to Home Screen in Safari (PWA); or build natively from `ios/` with Xcode
-
-          ### What's New
-          - Multi-platform support: Android, iOS, Windows, macOS, Linux, Web
-          - 451 built-in jokes across 4 categories
-          - Face detection with smile/laugh capture
-          - Text-to-Speech joke narration
+          artifacts/JokeCamera-macos/*
+          artifacts/JokeCamera-windows/*
+          artifacts/JokeCamera-web/*
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

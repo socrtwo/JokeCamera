@@ -1,7 +1,7 @@
 # Joke Camera
 
 <!--PAGES_LINK_BANNER-->
-> 🌐 **Live page:** [https://socrtwo.github.io/JokeCamera/](https://socrtwo.github.io/JokeCamera/)  
+> 🌐 **Live page:** [https://socrtwo.github.io/JokeCamera/](https://socrtwo.github.io/JokeCamera/)
 > 📦 **Releases:** [github.com/socrtwo/JokeCamera/releases](https://github.com/socrtwo/JokeCamera/releases)
 <!--/PAGES_LINK_BANNER-->
 
@@ -174,9 +174,9 @@ npm run build:linux # Build Linux packages
 
 ### Android
 ```bash
-./gradlew assembleDebug
+./gradlew :composeApp:assembleDebug
 ```
-APK output: `app/build/outputs/apk/debug/`
+APK output: `composeApp/build/outputs/apk/debug/`
 
 **Requirements**: JDK 17, Android SDK 34
 
@@ -201,6 +201,18 @@ npm run build  # Builds for current platform
 
 **Requirements**: Node.js 20+
 
+### Kotlin Multiplatform (Compose)
+The repository also includes a shared Compose Multiplatform app in `composeApp/`.
+It shares the joke manager and UI across Android, iOS, desktop, and WebAssembly targets.
+
+```bash
+./gradlew :composeApp:assembleDebug
+./gradlew :composeApp:packageDmg      # macOS
+./gradlew :composeApp:packageMsi      # Windows
+./gradlew :composeApp:packageDeb      # Linux
+./gradlew :composeApp:wasmJsBrowserDistribution
+```
+
 ## Project Structure
 
 ```
@@ -215,6 +227,7 @@ JokeCamera/
 │   │   ├── res/
 │   │   └── AndroidManifest.xml
 │   └── build.gradle
+├── composeApp/                   # Kotlin Multiplatform (Compose)
 ├── ios/                          # iOS (Swift/SwiftUI)
 │   ├── JokeCamera.xcodeproj/
 │   └── JokeCamera/
