@@ -179,7 +179,7 @@ fun SettingsScreen(
                         value = timerDelay,
                         valueRange = AppSettings.MIN_TIMER_DELAY..AppSettings.MAX_TIMER_DELAY,
                         steps = 19,
-                        format = "%.1f seconds",
+                        decimalPlaces = 1,
                         onValueChange = {
                             timerDelay = it
                             settingsStore.putFloat(AppSettings.KEY_TIMER_DELAY, it)
@@ -220,7 +220,7 @@ fun SettingsScreen(
                 value = punchlineDelay,
                 valueRange = AppSettings.MIN_PUNCHLINE_DELAY..AppSettings.MAX_PUNCHLINE_DELAY,
                 steps = 200,
-                format = "%.2f seconds",
+                decimalPlaces = 2,
                 onValueChange = {
                     punchlineDelay = it
                     settingsStore.putFloat(AppSettings.KEY_PUNCHLINE_DELAY, it)
@@ -232,7 +232,7 @@ fun SettingsScreen(
                 value = nextJokeWait,
                 valueRange = AppSettings.MIN_NEXT_JOKE_WAIT..AppSettings.MAX_NEXT_JOKE_WAIT,
                 steps = 19,
-                format = "%.1f seconds",
+                decimalPlaces = 1,
                 onValueChange = {
                     nextJokeWait = it
                     settingsStore.putFloat(AppSettings.KEY_NEXT_JOKE_WAIT, it)
@@ -334,7 +334,7 @@ private fun SettingSlider(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
-    format: String,
+    decimalPlaces: Int,
     onValueChange: (Float) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -343,7 +343,7 @@ private fun SettingSlider(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(format.format(value), style = MaterialTheme.typography.bodyMedium)
+            Text(formatSeconds(value, decimalPlaces), style = MaterialTheme.typography.bodyMedium)
         }
         Slider(
             value = value,
@@ -352,6 +352,23 @@ private fun SettingSlider(
             steps = steps
         )
     }
+}
+
+private fun formatSeconds(value: Float, decimalPlaces: Int): String {
+    val scale = when (decimalPlaces) {
+        1 -> 10f
+        2 -> 100f
+        else -> 1f
+    }
+    val roundedValue = kotlin.math.round(value * scale) / scale
+    val parts = roundedValue.toString().split('.')
+    val fraction = parts.getOrElse(1) { "" }.padEnd(decimalPlaces, '0').take(decimalPlaces)
+    val formattedValue = if (decimalPlaces == 0) {
+        parts[0]
+    } else {
+        "${parts[0]}.$fraction"
+    }
+    return "$formattedValue seconds"
 }
 
 @Composable
